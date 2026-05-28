@@ -8,6 +8,17 @@ from typing_extensions import Final
 
 DOMAIN: Final = "tuya_ble"
 
+class DPType(StrEnum):
+    """Tuya datapoint data types used by this integration."""
+
+    BOOLEAN = "Boolean"
+    ENUM = "Enum"
+    INTEGER = "Integer"
+    JSON = "Json"
+    RAW = "Raw"
+    STRING = "String"
+
+
 DEVICE_METADATA_UUIDS: Final = "uuids"
 
 DEVICE_DEF_MANUFACTURER: Final = "Tuya"

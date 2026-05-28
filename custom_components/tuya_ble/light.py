@@ -12,7 +12,6 @@ from enum import IntEnum, StrEnum, Enum
 
 from homeassistant.components.tuya.const import (
     DPCode,
-    DPType,
     WorkMode,
 )
 
@@ -32,7 +31,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.const import EntityCategory
 
-from .const import DOMAIN
+from .const import DOMAIN, DPType
 from .base import IntegerTypeData
 from .util import remap_value
 from .devices import TuyaBLEData, TuyaBLEEntity, TuyaBLEProductInfo

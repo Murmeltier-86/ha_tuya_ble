@@ -20,10 +20,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from homeassistant.components.tuya.const import (
-    DPCode,
-    DPType,
-)
+from homeassistant.components.tuya.const import DPCode
 
 from home_assistant_bluetooth import BluetoothServiceInfoBleak
 from .tuya_ble import (
@@ -37,6 +34,7 @@ from .cloud import HASSTuyaBLEDeviceManager
 from .const import (
     DEVICE_DEF_MANUFACTURER,
     DOMAIN,
+    DPType,
     FINGERBOT_BUTTON_EVENT,
     SET_DISCONNECTED_DELAY,
 )
@@ -469,6 +467,16 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
                 name="Smart water bottle",
             ),
         },
+    ),
+    "gcj": TuyaBLECategoryInfo(
+        products={
+            "7yr5iwga": TuyaBLEProductInfo(  # Robot Mower PMRC 250 A1 (BT)
+                name="Robot Mower PMRC 250 A1 (BT)",
+            ),
+        },
+        info=TuyaBLEProductInfo(
+            name="Robot Mower",
+        ),
     ),
     "ggq": TuyaBLECategoryInfo(
         products={
