@@ -344,7 +344,91 @@ class TuyaBLEDevice:
 
     async def update(self) -> None:
         _LOGGER.debug("%s: Updating", self.address)
-        await self._send_packet(TuyaBLECode.FUN_SENDER_DEVICE_STATUS, bytes())
+        try:
+            await self._send_packet(TuyaBLECode.FUN_SENDER_DEVICE_STATUS, bytes())
+        finally:
+            await self.update_from_cloud()
+
+    async def update_from_cloud(self) -> None:
+        """Fetch latest datapoints from Tuya cloud as a fallback for BLE-only reads."""
+        if not self._device_info or not self._device_manager:
+            return
+
+        statuses = await self._device_manager.get_device_status(
+            self._device_info.device_id
+        )
+        if not statuses:
+            return
+
+        if not self.status_range and not self.function:
+            _LOGGER.debug(
+                "%s: Cannot map Tuya cloud status fallback without DP metadata",
+                self.address,
+            )
+            return
+
+        datapoints: list[TuyaBLEDataPoint] = []
+        for status in statuses:
+            if not isinstance(status, dict):
+                continue
+            code = status.get("code")
+            value = status.get("value")
+            dp_id = None
+            dp_type = None
+            if code in self.status_range:
+                status_info = self.status_range[code]
+                dp_id = status_info.dp_id
+                dp_type = status_info.type
+            elif code in self.function:
+                function_info = self.function[code]
+                dp_id = function_info.dp_id
+                dp_type = function_info.type
+
+            data_type = self._dp_type_to_data_point_type(dp_type, value)
+            if dp_id is None or data_type is None:
+                continue
+
+            self._datapoints._update_from_device(
+                dp_id,
+                time.time(),
+                0,
+                data_type,
+                value,
+            )
+            datapoint = self._datapoints[dp_id]
+            if datapoint:
+                datapoints.append(datapoint)
+
+        if datapoints:
+            _LOGGER.debug(
+                "%s: Received %s datapoints from Tuya cloud fallback",
+                self.address,
+                len(datapoints),
+            )
+            self._fire_callbacks(datapoints)
+
+    @staticmethod
+    def _dp_type_to_data_point_type(
+        dp_type: DPType | None, value: bytes | bool | int | str | None
+    ) -> TuyaBLEDataPointType | None:
+        """Convert a Tuya cloud DP type into a Tuya BLE datapoint type."""
+        if dp_type == DPType.BOOLEAN or isinstance(value, bool):
+            return TuyaBLEDataPointType.DT_BOOL
+        if dp_type == DPType.INTEGER:
+            return TuyaBLEDataPointType.DT_VALUE
+        if dp_type == DPType.ENUM:
+            return (
+                TuyaBLEDataPointType.DT_STRING
+                if isinstance(value, str)
+                else TuyaBLEDataPointType.DT_ENUM
+            )
+        if dp_type == DPType.STRING or dp_type == DPType.JSON or isinstance(value, str):
+            return TuyaBLEDataPointType.DT_STRING
+        if dp_type == DPType.RAW:
+            return TuyaBLEDataPointType.DT_RAW
+        if isinstance(value, int):
+            return TuyaBLEDataPointType.DT_VALUE
+        return None
 
     async def _update_device_info(self) -> bool:
         if self._device_info is None:

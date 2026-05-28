@@ -51,6 +51,13 @@ class AbstaractTuyaBLEDeviceManager(ABC):
         """Get credentials of the Tuya BLE device."""
         pass
 
+    async def get_device_status(
+        self,
+        device_id: str,
+    ) -> list[dict] | None:
+        """Get current device datapoint status from the cloud, if supported."""
+        return None
+
     @classmethod
     def check_and_create_device_credentials(
         self,

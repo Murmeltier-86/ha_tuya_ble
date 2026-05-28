@@ -47,6 +47,7 @@ from .const import (
     TUYA_API_DEVICES_URL,
     TUYA_API_FACTORY_INFO_URL,
     TUYA_API_DEVICE_SPECIFICATION,
+    TUYA_API_DEVICE_STATUS,
     TUYA_FACTORY_INFO_MAC,
     TUYA_API_DEVICES_URL,
     TUYA_API_FACTORY_INFO_URL,
@@ -261,6 +262,43 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
         for cache_item in _cache.values():
             self._data.update(cache_item.login)
             break
+
+
+    async def get_device_status(
+        self,
+        device_id: str,
+    ) -> list[dict] | None:
+        """Get current datapoint status values from Tuya cloud."""
+        global _cache
+
+        if not device_id:
+            return None
+
+        item: TuyaCloudCacheItem | None = None
+        if self._has_login(self._data):
+            item = _cache.get(self._get_cache_key(self._data))
+
+        if item is None or item.api is None:
+            if self._is_login_success(await self.login(True)):
+                item = _cache.get(self._get_cache_key(self._data))
+
+        if item is None or item.api is None:
+            _LOGGER.debug("Cannot fetch Tuya cloud status for %s: no API session", device_id)
+            return None
+
+        response = await self._hass.async_add_executor_job(
+            item.api.get,
+            TUYA_API_DEVICE_STATUS % device_id,
+        )
+        result = response.get(TUYA_RESPONSE_RESULT)
+        if isinstance(result, list):
+            return result
+        if isinstance(result, dict):
+            properties = result.get("properties")
+            if isinstance(properties, list):
+                return properties
+        _LOGGER.debug("Unexpected Tuya cloud status response for %s: %s", device_id, response)
+        return None
 
     async def get_device_credentials(
         self,
