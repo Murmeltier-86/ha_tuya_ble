@@ -271,6 +271,7 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
         item: TuyaCloudCacheItem | None = None
         credentials: dict[str, any] | None = None
         result: TuyaBLEDeviceCredentials | None = None
+        normalized_address = address.replace("-", ":").upper()
 
         if not force_update and self._has_credentials(self._data):
             credentials = self._data.copy()
@@ -280,7 +281,7 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
                 cache_key = self._get_cache_key(self._data)
             else:
                 for key in _cache.keys():
-                    if _cache[key].credentials.get(address) is not None:
+                    if _cache[key].credentials.get(normalized_address) is not None:
                         cache_key = key
                         break
             if cache_key:
@@ -293,7 +294,7 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
                         await self._fill_cache_item(item)
 
             if item:
-                credentials = item.credentials.get(address)
+                credentials = item.credentials.get(normalized_address)
 
         if credentials:
             result = TuyaBLEDeviceCredentials(
