@@ -15,13 +15,6 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.components.tuya.const import (
-    CONF_APP_TYPE,
-    CONF_ENDPOINT,
-    DOMAIN as TUYA_DOMAIN,
-    TUYA_RESPONSE_RESULT,
-    TUYA_RESPONSE_SUCCESS,
-)
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -61,6 +54,11 @@ from .const import (
     CONF_ACCESS_ID,
     CONF_ACCESS_SECRET,
     CONF_AUTH_TYPE,
+    CONF_APP_TYPE,
+    CONF_ENDPOINT,
+    TUYA_DOMAIN,
+    TUYA_RESPONSE_RESULT,
+    TUYA_RESPONSE_SUCCESS,
     SMARTLIFE_APP,
 )
 
@@ -79,6 +77,11 @@ CONF_TUYA_LOGIN_KEYS = [
     CONF_ACCESS_ID,
     CONF_ACCESS_SECRET,
     CONF_AUTH_TYPE,
+    CONF_APP_TYPE,
+    CONF_ENDPOINT,
+    TUYA_DOMAIN,
+    TUYA_RESPONSE_RESULT,
+    TUYA_RESPONSE_SUCCESS,
     CONF_USERNAME,
     CONF_PASSWORD,
     CONF_COUNTRY_CODE,

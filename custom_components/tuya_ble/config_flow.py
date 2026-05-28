@@ -27,13 +27,6 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowHandler, FlowResult
 
-from homeassistant.components.tuya.const import (
-    CONF_APP_TYPE,
-    CONF_ENDPOINT,
-    TUYA_RESPONSE_CODE,
-    TUYA_RESPONSE_MSG,
-    TUYA_RESPONSE_SUCCESS,
-)
 from .tuya_ble import SERVICE_UUID, TuyaBLEDeviceCredentials
 
 from .const import (
@@ -41,6 +34,11 @@ from .const import (
     CONF_ACCESS_ID,
     CONF_ACCESS_SECRET,
     CONF_AUTH_TYPE,
+    CONF_APP_TYPE,
+    CONF_ENDPOINT,
+    TUYA_RESPONSE_CODE,
+    TUYA_RESPONSE_MSG,
+    TUYA_RESPONSE_SUCCESS,
     SMARTLIFE_APP,
     TUYA_SMART_APP,
     TUYA_COUNTRIES
