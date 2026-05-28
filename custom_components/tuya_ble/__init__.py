@@ -59,15 +59,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             f"Could not communicate with Tuya BLE device with address {address}"
         ) from ex
     '''
-    async def _async_initial_update() -> None:
-        try:
-            await asyncio.wait_for(device.update(), timeout=10)
-        except TimeoutError:
-            _LOGGER.debug("Initial Tuya BLE update timed out for %s", address, exc_info=True)
-        except BLEAK_EXCEPTIONS:
-            _LOGGER.debug("Initial Tuya BLE update failed for %s", address, exc_info=True)
-
-    hass.async_create_task(_async_initial_update())
+    # Skip eager update at startup to avoid blocking Home Assistant bootstrap.
 
     @callback
     def _async_update_ble(

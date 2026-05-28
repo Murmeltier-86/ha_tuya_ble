@@ -687,6 +687,8 @@ class TuyaBLEDevice:
         global global_connect_lock
         if self._expected_disconnect or self._notifications_unsupported:
             return
+        if monotonic() < self._notify_retry_block_until:
+            return
         if self._connect_lock.locked():
             _LOGGER.debug(
                 "%s: Connection already in progress,"
@@ -701,7 +703,7 @@ class TuyaBLEDevice:
             await asyncio.sleep(0.01)
             if self._client and self._client.is_connected and self._is_paired:
                 return
-            attempts_count = 100
+            attempts_count = 3
             while attempts_count > 0:
                 attempts_count -= 1
                 if attempts_count == 0:
@@ -753,6 +755,7 @@ class TuyaBLEDevice:
                         )
                         self._notify_failures = 0
                         self._next_reconnect_ts = 0.0
+                        self._notify_retry_block_until = 0.0
                     except BleakCharacteristicNotFoundError:
                         self._notifications_unsupported = True
                         self._expected_disconnect = True
@@ -774,6 +777,10 @@ class TuyaBLEDevice:
                             )
                         else:
                             _LOGGER.debug("%s: starting notifications failed (attempt %s)", self.address, self._notify_failures, exc_info=True)
+                        if self._notify_failures >= 5:
+                            self._notify_retry_block_until = monotonic() + 300
+                            _LOGGER.warning("%s: pausing notify retries for 5 minutes", self.address)
+                            raise BleakNotFoundError()
                         await asyncio.sleep(min(5, self._notify_failures))
                         continue
                 else:
@@ -973,8 +980,12 @@ class TuyaBLEDevice:
         """Send packet to device and optional read response."""
         if self._expected_disconnect or self._notifications_unsupported:
             return
+        if monotonic() < self._notify_retry_block_until:
+            return
         await self._ensure_connected()
         if self._expected_disconnect or self._notifications_unsupported:
+            return
+        if monotonic() < self._notify_retry_block_until:
             return
         await self._send_packet_while_connected(code, data, 0, wait_for_response)
 
@@ -1069,8 +1080,12 @@ class TuyaBLEDevice:
     async def _resend_packets(self, packets: list[bytes]) -> None:
         if self._expected_disconnect or self._notifications_unsupported:
             return
+        if monotonic() < self._notify_retry_block_until:
+            return
         await self._ensure_connected()
         if self._expected_disconnect or self._notifications_unsupported:
+            return
+        if monotonic() < self._notify_retry_block_until:
             return
         await self._int_send_packet_while_connected(packets)
 
