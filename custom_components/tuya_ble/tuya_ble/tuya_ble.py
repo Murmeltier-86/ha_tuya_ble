@@ -270,6 +270,7 @@ class TuyaBLEDevice:
         self._write_char = CHARACTERISTIC_WRITE
         self._notify_failures = 0
         self._next_reconnect_ts = 0.0
+        self._notify_retry_block_until = 0.0
         self._connected_callbacks: list[Callable[[], None]] = []
         self._callbacks: list[Callable[[list[TuyaBLEDataPoint]], None]] = []
         self._disconnected_callbacks: list[Callable[[], None]] = []
@@ -778,9 +779,12 @@ class TuyaBLEDevice:
                         else:
                             _LOGGER.debug("%s: starting notifications failed (attempt %s)", self.address, self._notify_failures, exc_info=True)
                         if self._notify_failures >= 5:
-                            self._notify_retry_block_until = monotonic() + 300
-                            _LOGGER.warning("%s: pausing notify retries for 5 minutes", self.address)
-                            raise BleakNotFoundError()
+                            self._notify_retry_block_until = monotonic() + 30
+                            _LOGGER.warning(
+                                "%s: pausing notify retries for 30 seconds",
+                                self.address,
+                            )
+                            return
                         await asyncio.sleep(min(5, self._notify_failures))
                         continue
                 else:
