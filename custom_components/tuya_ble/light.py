@@ -891,7 +891,7 @@ async def async_setup_entry(
     descs = get_mapping_by_device(data.device)
 
     if not descs:
-        _LOGGER.warning("No descriptions found for device: %s", data.device)
+        _LOGGER.debug("No light descriptions found for device: %s", data.device)
         return
 
     entities: list[TuyaBLELight] = []

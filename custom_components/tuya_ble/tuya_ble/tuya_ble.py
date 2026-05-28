@@ -14,7 +14,7 @@ import json
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
-from bleak.exc import BleakDBusError
+from bleak.exc import BleakDBusError, BleakCharacteristicNotFoundError
 from bleak_retry_connector import BLEAK_BACKOFF_TIME
 from bleak_retry_connector import BLEAK_RETRY_EXCEPTIONS
 from bleak_retry_connector import (
@@ -264,6 +264,7 @@ class TuyaBLEDevice:
         self._connect_lock = asyncio.Lock()
         self._client: BleakClientWithServiceCache | None = None
         self._expected_disconnect = False
+        self._notifications_unsupported = False
         self._connected_callbacks: list[Callable[[], None]] = []
         self._callbacks: list[Callable[[list[TuyaBLEDataPoint]], None]] = []
         self._disconnected_callbacks: list[Callable[[], None]] = []
@@ -607,6 +608,8 @@ class TuyaBLEDevice:
             self._fire_disconnected_callbacks()
             return
         self._client = None
+        if self._notifications_unsupported:
+            return
         _LOGGER.warning(
             "%s: Device unexpectedly disconnected; RSSI: %s",
             self.address,
@@ -646,7 +649,7 @@ class TuyaBLEDevice:
     async def _ensure_connected(self) -> None:
         """Ensure connection to device is established."""
         global global_connect_lock
-        if self._expected_disconnect:
+        if self._expected_disconnect or self._notifications_unsupported:
             return
         if self._connect_lock.locked():
             _LOGGER.debug(
@@ -711,6 +714,15 @@ class TuyaBLEDevice:
                         await self._client.start_notify(
                             CHARACTERISTIC_NOTIFY, self._notification_handler
                         )
+                    except BleakCharacteristicNotFoundError:
+                        self._notifications_unsupported = True
+                        self._expected_disconnect = True
+                        self._client = None
+                        _LOGGER.error(
+                            "%s: Tuya notify characteristic not found; stopping retries for this device",
+                            self.address,
+                        )
+                        raise BleakNotFoundError()
                     except:  # [BLEAK_EXCEPTIONS, BleakNotFoundError]:
                         self._client = None
                         _LOGGER.error("%s: starting notifications failed",
@@ -911,10 +923,10 @@ class TuyaBLEDevice:
         # retry: int | None = None,
     ) -> None:
         """Send packet to device and optional read response."""
-        if self._expected_disconnect:
+        if self._expected_disconnect or self._notifications_unsupported:
             return
         await self._ensure_connected()
-        if self._expected_disconnect:
+        if self._expected_disconnect or self._notifications_unsupported:
             return
         await self._send_packet_while_connected(code, data, 0, wait_for_response)
 
@@ -1007,10 +1019,10 @@ class TuyaBLEDevice:
                 raise
 
     async def _resend_packets(self, packets: list[bytes]) -> None:
-        if self._expected_disconnect:
+        if self._expected_disconnect or self._notifications_unsupported:
             return
         await self._ensure_connected()
-        if self._expected_disconnect:
+        if self._expected_disconnect or self._notifications_unsupported:
             return
         await self._int_send_packet_while_connected(packets)
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import pycountry
 from typing import Any
 
 import voluptuous as vol
@@ -113,12 +112,6 @@ def _show_login_form(
                 break
 
     def_country_name: str | None = None
-    try:
-        def_country = pycountry.countries.get(alpha_2=flow.hass.config.country)
-        if def_country:
-            def_country_name = def_country.name
-    except:
-        pass
 
     return flow.async_show_form(
         step_id="login",
