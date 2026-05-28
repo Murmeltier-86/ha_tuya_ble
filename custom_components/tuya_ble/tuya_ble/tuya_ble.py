@@ -373,10 +373,23 @@ class TuyaBLEDevice:
         result += self._device_info.uuid.encode()
         result += self._local_key
         result += self._device_info.device_id.encode()
-        for _ in range(44 - len(result)):
-            result += b"\x00"
+        # Tuya BLE pairing payloads are 46 bytes: uuid (16), login key (6),
+        # device id (16), and an 8-byte trailer.  Captures from FD50 Tuya BLE
+        # devices show that trailer ending in 0x01; sending a shorter 44-byte
+        # payload can make newer devices drop the setup session.
+        if len(result) < 45:
+            result += bytes(45 - len(result))
+        result += b"\x01"
 
         return result
+
+    def _build_device_info_request(self) -> bytes:
+        """Build the Tuya BLE device-info request payload."""
+        # The device-info request advertises the maximum GATT payload size.
+        # ESPHome proxies normally negotiate MTU 247 for FD50 devices, which
+        # Tuya captures encode as 0x00f3 (247 - ATT header/SDK overhead).
+        mtu_size = getattr(self._client, "mtu_size", 247) or 247
+        return pack(">H", max(GATT_MTU, min(0xF3, mtu_size - 4)))
 
     async def pair(self) -> None:
         """
@@ -1106,7 +1119,7 @@ class TuyaBLEDevice:
                     try:
                         if not await self._send_packet_while_connected(
                             TuyaBLECode.FUN_SENDER_DEVICE_INFO,
-                            bytes(0),
+                            self._build_device_info_request(),
                             0,
                             True,
                         ):
@@ -1546,8 +1559,8 @@ class TuyaBLEDevice:
                 raise TuyaBLEDataFormatError()
             type: TuyaBLEDataPointType = TuyaBLEDataPointType(_type)
             pos += 1
-            data_len: int = data[pos]
-            pos += 1
+            data_len: int = int.from_bytes(data[pos:pos + 2], "big")
+            pos += 2
             next_pos = pos + data_len
             if next_pos > len(data):
                 raise TuyaBLEDataLengthError()
@@ -1871,7 +1884,7 @@ class TuyaBLEDevice:
                 dp.type.name,
                 dp.value,
             )
-            data += pack(">BBB", dp.id, int(dp.type.value), len(value))
+            data += pack(">BBH", dp.id, int(dp.type.value), len(value))
             data += value
 
         await self._send_packet(
