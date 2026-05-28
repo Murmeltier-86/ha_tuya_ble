@@ -58,7 +58,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             f"Could not communicate with Tuya BLE device with address {address}"
         ) from ex
     '''
-    hass.add_job(device.update())
+    async def _async_initial_update() -> None:
+        try:
+            await device.update()
+        except BLEAK_EXCEPTIONS:
+            _LOGGER.debug("Initial Tuya BLE update failed for %s", address, exc_info=True)
+
+    hass.async_create_task(_async_initial_update())
 
     @callback
     def _async_update_ble(
