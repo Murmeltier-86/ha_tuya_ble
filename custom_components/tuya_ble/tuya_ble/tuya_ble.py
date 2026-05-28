@@ -266,6 +266,7 @@ class TuyaBLEDevice:
         self._client: BleakClientWithServiceCache | None = None
         self._expected_disconnect = False
         self._notifications_unsupported = False
+        self._setup_in_progress = False
         self._notify_char = CHARACTERISTIC_NOTIFY
         self._write_char = CHARACTERISTIC_WRITE
         self._notify_failures = 0
@@ -614,6 +615,12 @@ class TuyaBLEDevice:
             self._fire_disconnected_callbacks()
             return
         self._client = None
+        if self._setup_in_progress:
+            _LOGGER.debug(
+                "%s: Disconnected during connection setup; setup task will handle retry",
+                self.address,
+            )
+            return
         if self._notifications_unsupported:
             return
         now = monotonic()
@@ -656,6 +663,36 @@ class TuyaBLEDevice:
                 await client.disconnect()
         async with self._seq_num_lock:
             self._current_seq_num = 1
+
+
+    async def _cleanup_failed_connection(
+        self, client: BleakClientWithServiceCache | None, reason: str
+    ) -> None:
+        """Disconnect a client that failed during setup before retrying."""
+        if client is None:
+            return
+
+        self._expected_disconnect = True
+        try:
+            if client.is_connected:
+                _LOGGER.debug(
+                    "%s: Disconnecting failed setup connection: %s",
+                    self.address,
+                    reason,
+                )
+                await client.disconnect()
+        except BLEAK_EXCEPTIONS:
+            _LOGGER.debug(
+                "%s: Error while disconnecting failed setup connection",
+                self.address,
+                exc_info=True,
+            )
+        finally:
+            if self._client is client:
+                self._client = None
+            self._setup_in_progress = False
+            self._expected_disconnect = False
+
 
 
     def _resolve_characteristics(self) -> None:
@@ -749,6 +786,7 @@ class TuyaBLEDevice:
                     _LOGGER.debug("%s: Connected; RSSI: %s",
                                   self.address, self.rssi)
                     self._client = client
+                    self._setup_in_progress = True
                     try:
                         self._resolve_characteristics()
                         await self._client.start_notify(
@@ -759,15 +797,18 @@ class TuyaBLEDevice:
                         self._notify_retry_block_until = 0.0
                     except BleakCharacteristicNotFoundError:
                         self._notifications_unsupported = True
-                        self._expected_disconnect = True
-                        self._client = None
+                        await self._cleanup_failed_connection(
+                            client, "notify characteristic not found"
+                        )
                         _LOGGER.error(
                             "%s: Tuya notify characteristic not found; stopping retries for this device",
                             self.address,
                         )
                         raise BleakNotFoundError()
                     except:  # [BLEAK_EXCEPTIONS, BleakNotFoundError]:
-                        self._client = None
+                        await self._cleanup_failed_connection(
+                            client, "start_notify failed"
+                        )
                         self._notify_failures += 1
                         if self._notify_failures % 10 == 1:
                             _LOGGER.warning(
@@ -800,14 +841,18 @@ class TuyaBLEDevice:
                             0,
                             True,
                         ):
-                            self._client = None
+                            await self._cleanup_failed_connection(
+                                client, "device info request failed"
+                            )
                             _LOGGER.error(
                                 "%s: Sending device info request failed",
                                 self.address,
                             )
                             continue
                     except:  # [BLEAK_EXCEPTIONS, BleakNotFoundError]:
-                        self._client = None
+                        await self._cleanup_failed_connection(
+                            client, "device info request failed"
+                        )
                         _LOGGER.error("%s: Sending device info request failed",
                                       self.address, exc_info=True)
                         continue
@@ -823,20 +868,25 @@ class TuyaBLEDevice:
                             0,
                             True,
                         ):
-                            self._client = None
+                            await self._cleanup_failed_connection(
+                                client, "pairing request failed"
+                            )
                             _LOGGER.error(
                                 "%s: Sending pairing request failed",
                                 self.address,
                             )
                             continue
                     except:  # [BLEAK_EXCEPTIONS, BleakNotFoundError]:
-                        self._client = None
+                        await self._cleanup_failed_connection(
+                            client, "pairing request failed"
+                        )
                         _LOGGER.error("%s: Sending pairing request failed",
                                       self.address, exc_info=True)
                         continue
                 else:
                     continue
 
+                self._setup_in_progress = False
                 break
 
         if self._client:
