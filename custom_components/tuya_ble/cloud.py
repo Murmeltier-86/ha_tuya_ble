@@ -49,6 +49,7 @@ from .const import (
     TUYA_API_FACTORY_INFO_URL,
     TUYA_API_DEVICE_SPECIFICATION,
     TUYA_API_DEVICE_STATUS,
+    TUYA_API_DEVICE_SHADOW_PROPERTIES,
     TUYA_API_DEVICE_COMMANDS,
     TUYA_FACTORY_INFO_MAC,
     TUYA_API_DEVICES_URL,
@@ -294,19 +295,76 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
             _LOGGER.debug("Cannot fetch Tuya cloud status for %s: no API session", device_id)
             return None
 
-        response = await self._hass.async_add_executor_job(
+        statuses_by_code: dict[str, dict] = {}
+
+        status_response = await self._hass.async_add_executor_job(
             item.api.get,
             TUYA_API_DEVICE_STATUS % device_id,
         )
+        self._collect_status_values(device_id, status_response, statuses_by_code)
+
+        shadow_response = await self._hass.async_add_executor_job(
+            item.api.get,
+            TUYA_API_DEVICE_SHADOW_PROPERTIES % device_id,
+        )
+        self._collect_status_values(device_id, shadow_response, statuses_by_code)
+
+        if statuses_by_code:
+            _LOGGER.debug(
+                "Fetched %s Tuya cloud datapoints for %s: %s",
+                len(statuses_by_code),
+                device_id,
+                sorted(statuses_by_code),
+            )
+            return list(statuses_by_code.values())
+
+        _LOGGER.debug(
+            "No Tuya cloud status values found for %s; status=%s shadow=%s",
+            device_id,
+            status_response,
+            shadow_response,
+        )
+        return None
+
+    @staticmethod
+    def _collect_status_values(
+        device_id: str,
+        response: dict | None,
+        statuses_by_code: dict[str, dict],
+    ) -> None:
+        """Collect Tuya status/property values from a cloud response."""
+        if not isinstance(response, dict):
+            _LOGGER.debug(
+                "Unexpected Tuya cloud status response for %s: %s",
+                device_id,
+                response,
+            )
+            return
+
         result = response.get(TUYA_RESPONSE_RESULT)
+        values: list | None = None
         if isinstance(result, list):
-            return result
-        if isinstance(result, dict):
+            values = result
+        elif isinstance(result, dict):
             properties = result.get("properties")
             if isinstance(properties, list):
-                return properties
-        _LOGGER.debug("Unexpected Tuya cloud status response for %s: %s", device_id, response)
-        return None
+                values = properties
+
+        if values is None:
+            _LOGGER.debug(
+                "Unexpected Tuya cloud status response for %s: %s",
+                device_id,
+                response,
+            )
+            return
+
+        for item in values:
+            if not isinstance(item, dict):
+                continue
+            code = item.get("code")
+            if not isinstance(code, str) or not code:
+                continue
+            statuses_by_code[code] = item
 
 
     async def send_device_commands(

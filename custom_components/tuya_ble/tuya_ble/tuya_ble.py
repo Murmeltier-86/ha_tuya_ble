@@ -54,6 +54,11 @@ _LOGGER = logging.getLogger(__name__)
 
 BLEAK_EXCEPTIONS = (*BLEAK_RETRY_EXCEPTIONS, OSError)
 
+CLIENT_CHARACTERISTIC_CONFIGURATION_UUID = "00002902-0000-1000-8000-00805f9b34fb"
+GENERIC_ATTRIBUTE_SERVICE_UUID = "00001801-0000-1000-8000-00805f9b34fb"
+SERVICE_CHANGED_CHARACTERISTIC_UUID = "00002a05-0000-1000-8000-00805f9b34fb"
+TUYA_VENDOR_UUID_SUFFIX = "-1001-8001-00805f9b07d0"
+
 @dataclass
 class TuyaBLEEntityDescription:
     key: str
@@ -385,21 +390,26 @@ class TuyaBLEDevice:
 
     async def update(self) -> None:
         _LOGGER.debug("%s: Updating", self.address)
-        try:
-            await self._send_packet(TuyaBLECode.FUN_SENDER_DEVICE_STATUS, bytes())
-        finally:
-            await self.update_from_cloud()
+        cloud_updated = await self.update_from_cloud()
+        if self.product_id in ROBOT_MOWER_PRODUCT_IDS:
+            _LOGGER.debug(
+                "%s: Skipping BLE status poll for robot mower; cloud_updated=%s",
+                self.address,
+                cloud_updated,
+            )
+            return
+        await self._send_packet(TuyaBLECode.FUN_SENDER_DEVICE_STATUS, bytes())
 
-    async def update_from_cloud(self) -> None:
+    async def update_from_cloud(self) -> bool:
         """Fetch latest datapoints from Tuya cloud as a fallback for BLE-only reads."""
         if not self._device_info or not self._device_manager:
-            return
+            return False
 
         statuses = await self._device_manager.get_device_status(
             self._device_info.device_id
         )
         if not statuses:
-            return
+            return False
 
         datapoints: list[TuyaBLEDataPoint] = []
         for status in statuses:
@@ -434,6 +444,9 @@ class TuyaBLEDevice:
                 len(datapoints),
             )
             self._fire_callbacks(datapoints)
+            return True
+
+        return False
 
     def _cloud_status_mapping(
         self, code: str | None, value: bytes | bool | int | str | None
@@ -785,14 +798,15 @@ class TuyaBLEDevice:
             self._expected_disconnect = True
             self._client = None
             if client and client.is_connected:
-                try:
-                    await client.stop_notify(self._notify_char)
-                except BLEAK_EXCEPTIONS:
-                    _LOGGER.debug(
-                        "%s: stop_notify failed during disconnect",
-                        self.address,
-                        exc_info=True,
-                    )
+                if self._notify_char is not None:
+                    try:
+                        await client.stop_notify(self._notify_char)
+                    except BLEAK_EXCEPTIONS:
+                        _LOGGER.debug(
+                            "%s: stop_notify failed during disconnect",
+                            self.address,
+                            exc_info=True,
+                        )
                 await client.disconnect()
         async with self._seq_num_lock:
             self._current_seq_num = 1
@@ -840,18 +854,48 @@ class TuyaBLEDevice:
             for service in self._client.services:
                 for char in service.characteristics:
                     props = set(char.properties or [])
-                    has_cccd = any(getattr(d, "uuid", "").lower() == "00002902-0000-1000-8000-00805f9b34fb" for d in (char.descriptors or []))
-                    if notify_char is None and ("notify" in props or "indicate" in props) and has_cccd:
+                    descriptor_uuids = [
+                        getattr(d, "uuid", "").lower()
+                        for d in (char.descriptors or [])
+                    ]
+                    has_cccd = CLIENT_CHARACTERISTIC_CONFIGURATION_UUID in descriptor_uuids
+                    is_tuya_candidate = self._is_tuya_or_vendor_characteristic(
+                        service.uuid,
+                        char.uuid,
+                    )
+                    _LOGGER.debug(
+                        "%s: GATT service=%s char=%s props=%s descriptors=%s tuya_candidate=%s",
+                        self.address,
+                        service.uuid,
+                        char.uuid,
+                        sorted(props),
+                        descriptor_uuids,
+                        is_tuya_candidate,
+                    )
+                    if (
+                        notify_char is None
+                        and is_tuya_candidate
+                        and ("notify" in props or "indicate" in props)
+                        and has_cccd
+                    ):
                         notify_char = char
-                    if write_char is None and ("write" in props or "write-without-response" in props):
+                    if (
+                        write_char is None
+                        and is_tuya_candidate
+                        and ("write" in props or "write-without-response" in props)
+                    ):
                         write_char = char
 
         if notify_char is not None:
             self._notify_char = notify_char.uuid
+        else:
+            self._notify_char = None
         if write_char is not None:
             self._write_char = write_char.uuid
             props = set(write_char.properties or [])
             self._write_with_response = "write" in props
+        else:
+            self._write_char = None
 
         _LOGGER.debug(
             "%s: Using notify=%s write=%s write_with_response=%s",
@@ -859,6 +903,23 @@ class TuyaBLEDevice:
             self._notify_char,
             self._write_char,
             self._write_with_response,
+        )
+
+    @staticmethod
+    def _is_tuya_or_vendor_characteristic(service_uuid: str, char_uuid: str) -> bool:
+        """Return true for Tuya/vendor GATT characteristics, not generic GATT ones."""
+        service_uuid = service_uuid.lower()
+        char_uuid = char_uuid.lower()
+        if (
+            service_uuid == GENERIC_ATTRIBUTE_SERVICE_UUID
+            or char_uuid == SERVICE_CHANGED_CHARACTERISTIC_UUID
+        ):
+            return False
+        return (
+            service_uuid == SERVICE_UUID
+            or char_uuid in {CHARACTERISTIC_NOTIFY, CHARACTERISTIC_WRITE}
+            or service_uuid.endswith(TUYA_VENDOR_UUID_SUFFIX)
+            or char_uuid.endswith(TUYA_VENDOR_UUID_SUFFIX)
         )
 
     async def _ensure_connected(self, force: bool = False) -> None:
@@ -932,6 +993,26 @@ class TuyaBLEDevice:
                     self._setup_in_progress = True
                     try:
                         self._resolve_characteristics()
+                        if self._notify_char is None:
+                            self._notifications_unsupported = True
+                            await self._cleanup_failed_connection(
+                                client, "no Tuya notify characteristic"
+                            )
+                            _LOGGER.debug(
+                                "%s: No Tuya notify characteristic found; using cloud fallback only",
+                                self.address,
+                            )
+                            return
+                        if self._write_char is None:
+                            self._notifications_unsupported = True
+                            await self._cleanup_failed_connection(
+                                client, "no Tuya write characteristic"
+                            )
+                            _LOGGER.debug(
+                                "%s: No Tuya write characteristic found; using cloud fallback only",
+                                self.address,
+                            )
+                            return
                         await self._client.start_notify(
                             self._notify_char, self._notification_handler
                         )
@@ -1747,6 +1828,20 @@ class TuyaBLEDevice:
         self, datapoint_ids: list[int], force_connect: bool = False
     ) -> None:
         """Send new values of datapoints to the device."""
+        if self.product_id in ROBOT_MOWER_PRODUCT_IDS:
+            cloud_sent = await self._send_datapoints_cloud(datapoint_ids)
+            if cloud_sent:
+                _LOGGER.debug(
+                    "%s: sent robot mower datapoints through Tuya cloud: %s",
+                    self.address,
+                    datapoint_ids,
+                )
+                return
+            _LOGGER.debug(
+                "%s: robot mower cloud command failed; trying local BLE send",
+                self.address,
+            )
+
         local_error: Exception | None = None
         if self._protocol_version == 3:
             try:
