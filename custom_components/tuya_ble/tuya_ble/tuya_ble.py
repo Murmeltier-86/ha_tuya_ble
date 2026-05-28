@@ -265,6 +265,8 @@ class TuyaBLEDevice:
         self._client: BleakClientWithServiceCache | None = None
         self._expected_disconnect = False
         self._notifications_unsupported = False
+        self._notify_char = CHARACTERISTIC_NOTIFY
+        self._write_char = CHARACTERISTIC_WRITE
         self._connected_callbacks: list[Callable[[], None]] = []
         self._callbacks: list[Callable[[list[TuyaBLEDataPoint]], None]] = []
         self._disconnected_callbacks: list[Callable[[], None]] = []
@@ -641,10 +643,35 @@ class TuyaBLEDevice:
             self._expected_disconnect = True
             self._client = None
             if client and client.is_connected:
-                await client.stop_notify(CHARACTERISTIC_NOTIFY)
+                await client.stop_notify(self._notify_char)
                 await client.disconnect()
         async with self._seq_num_lock:
             self._current_seq_num = 1
+
+
+    def _resolve_characteristics(self) -> None:
+        """Resolve notify/write characteristics, with fallback for device variants."""
+        if not self._client or not self._client.services:
+            return
+
+        notify_char = self._client.services.get_characteristic(CHARACTERISTIC_NOTIFY)
+        write_char = self._client.services.get_characteristic(CHARACTERISTIC_WRITE)
+
+        if notify_char is None or write_char is None:
+            for service in self._client.services:
+                for char in service.characteristics:
+                    props = set(char.properties or [])
+                    if notify_char is None and ("notify" in props or "indicate" in props):
+                        notify_char = char
+                    if write_char is None and ("write" in props or "write-without-response" in props):
+                        write_char = char
+
+        if notify_char is not None:
+            self._notify_char = notify_char.uuid
+        if write_char is not None:
+            self._write_char = write_char.uuid
+
+        _LOGGER.debug("%s: Using notify=%s write=%s", self.address, self._notify_char, self._write_char)
 
     async def _ensure_connected(self) -> None:
         """Ensure connection to device is established."""
@@ -711,8 +738,9 @@ class TuyaBLEDevice:
                                   self.address, self.rssi)
                     self._client = client
                     try:
+                        self._resolve_characteristics()
                         await self._client.start_notify(
-                            CHARACTERISTIC_NOTIFY, self._notification_handler
+                            self._notify_char, self._notification_handler
                         )
                     except BleakCharacteristicNotFoundError:
                         self._notifications_unsupported = True
@@ -1066,7 +1094,7 @@ class TuyaBLEDevice:
                 try:
                     # _LOGGER.debug("%s: Sending packet: %s", self.address, packet.hex())
                     await self._client.write_gatt_char(
-                        CHARACTERISTIC_WRITE,
+                        self._write_char,
                         packet,
                         False,
                     )
