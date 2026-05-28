@@ -230,7 +230,7 @@ class TuyaBLEDataPoints:
                 self._updated_datapoints.remove(dp_id)
             self._updated_datapoints.append(dp_id)
         else:
-            await self._owner._send_datapoints([dp_id])
+            await self._owner._send_datapoints([dp_id], force_connect=True)
 
 
 global_connect_lock = asyncio.Lock()
@@ -269,6 +269,7 @@ class TuyaBLEDevice:
         self._setup_in_progress = False
         self._notify_char = CHARACTERISTIC_NOTIFY
         self._write_char = CHARACTERISTIC_WRITE
+        self._write_with_response = False
         self._notify_failures = 0
         self._next_reconnect_ts = 0.0
         self._notify_retry_block_until = 0.0
@@ -633,12 +634,7 @@ class TuyaBLEDevice:
             self._next_reconnect_ts = now + 30.0
         else:
             _LOGGER.debug("%s: Device unexpectedly disconnected; RSSI: %s", self.address, self.rssi)
-        _LOGGER.debug(
-            "%s: Scheduling reconnect; RSSI: %s",
-            self.address,
-            self.rssi,
-        )
-        asyncio.create_task(self._reconnect())
+        self._fire_disconnected_callbacks()
 
     def _disconnect(self) -> None:
         """Disconnect from device."""
@@ -659,7 +655,14 @@ class TuyaBLEDevice:
             self._expected_disconnect = True
             self._client = None
             if client and client.is_connected:
-                await client.stop_notify(self._notify_char)
+                try:
+                    await client.stop_notify(self._notify_char)
+                except BLEAK_EXCEPTIONS:
+                    _LOGGER.debug(
+                        "%s: stop_notify failed during disconnect",
+                        self.address,
+                        exc_info=True,
+                    )
                 await client.disconnect()
         async with self._seq_num_lock:
             self._current_seq_num = 1
@@ -717,15 +720,25 @@ class TuyaBLEDevice:
             self._notify_char = notify_char.uuid
         if write_char is not None:
             self._write_char = write_char.uuid
+            props = set(write_char.properties or [])
+            self._write_with_response = "write" in props
 
-        _LOGGER.debug("%s: Using notify=%s write=%s", self.address, self._notify_char, self._write_char)
+        _LOGGER.debug(
+            "%s: Using notify=%s write=%s write_with_response=%s",
+            self.address,
+            self._notify_char,
+            self._write_char,
+            self._write_with_response,
+        )
 
-    async def _ensure_connected(self) -> None:
+    async def _ensure_connected(self, force: bool = False) -> None:
         """Ensure connection to device is established."""
         global global_connect_lock
         if self._expected_disconnect or self._notifications_unsupported:
             return
-        if monotonic() < self._notify_retry_block_until:
+        if force:
+            self._notify_retry_block_until = 0.0
+        elif monotonic() < self._notify_retry_block_until:
             return
         if self._connect_lock.locked():
             _LOGGER.debug(
@@ -825,6 +838,8 @@ class TuyaBLEDevice:
                                 "%s: pausing notify retries for 30 seconds",
                                 self.address,
                             )
+                            if force:
+                                raise BleakNotFoundError()
                             return
                         await asyncio.sleep(min(5, self._notify_failures))
                         continue
@@ -1029,17 +1044,22 @@ class TuyaBLEDevice:
         code: TuyaBLECode,
         data: bytes,
         wait_for_response: bool = True,
+        force_connect: bool = False,
         # retry: int | None = None,
     ) -> None:
         """Send packet to device and optional read response."""
         if self._expected_disconnect or self._notifications_unsupported:
             return
-        if monotonic() < self._notify_retry_block_until:
+        if not force_connect and monotonic() < self._notify_retry_block_until:
             return
-        await self._ensure_connected()
+        await self._ensure_connected(force_connect)
         if self._expected_disconnect or self._notifications_unsupported:
             return
-        if monotonic() < self._notify_retry_block_until:
+        if not force_connect and monotonic() < self._notify_retry_block_until:
+            return
+        if not (self._client and self._client.is_connected and self._is_paired):
+            if force_connect:
+                raise BleakNotFoundError()
             return
         await self._send_packet_while_connected(code, data, 0, wait_for_response)
 
@@ -1185,7 +1205,7 @@ class TuyaBLEDevice:
                     await self._client.write_gatt_char(
                         self._write_char,
                         packet,
-                        False,
+                        response=self._write_with_response,
                     )
                 except:
                     _LOGGER.error(
@@ -1517,7 +1537,7 @@ class TuyaBLEDevice:
         elif len(self._input_buffer) == self._input_expected_length:
             self._parse_input()
 
-    async def _send_datapoints_v3(self, datapoint_ids: list[int]) -> None:
+    async def _send_datapoints_v3(self, datapoint_ids: list[int], force_connect: bool = False) -> None:
         """Send new values of datapoints to the device."""
         data = bytearray()
         for dp_id in datapoint_ids:
@@ -1533,11 +1553,17 @@ class TuyaBLEDevice:
             data += pack(">BBB", dp.id, int(dp.type.value), len(value))
             data += value
 
-        await self._send_packet(TuyaBLECode.FUN_SENDER_DPS, data)
+        await self._send_packet(
+            TuyaBLECode.FUN_SENDER_DPS,
+            data,
+            force_connect=force_connect,
+        )
 
-    async def _send_datapoints(self, datapoint_ids: list[int]) -> None:
+    async def _send_datapoints(
+        self, datapoint_ids: list[int], force_connect: bool = False
+    ) -> None:
         """Send new values of datapoints to the device."""
         if self._protocol_version == 3:
-            await self._send_datapoints_v3(datapoint_ids)
+            await self._send_datapoints_v3(datapoint_ids, force_connect)
         else:
             raise TuyaBLEDeviceError(0)
