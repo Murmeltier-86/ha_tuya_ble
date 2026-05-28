@@ -472,7 +472,7 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
     ),
     "gcj": TuyaBLECategoryInfo(
         products={
-            "7yr5iwga": TuyaBLEProductInfo(  # Robot Mower PMRC 250 A1 (BT)
+            "7yr5iwga": TuyaBLEProductInfo(  # Robot Mower PMRC 250 A1（BT）
                 name="Robot Mower PMRC 250 A1 (BT)",
             ),
         },
