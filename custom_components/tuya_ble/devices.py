@@ -263,18 +263,25 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
         """Poll latest datapoints from the device."""
         try:
             await self._device.update()
+            if self._disconnected:
+                _LOGGER.debug("%s: update succeeded; marking coordinator connected", self._device.address)
+            self._disconnected = False
         except Exception as ex:
+            _LOGGER.debug("%s: periodic update failed", self._device.address, exc_info=True)
             raise UpdateFailed(f"Failed to update Tuya BLE device {self._device.address}") from ex
 
     @property
     def connected(self) -> bool:
-        return not self._disconnected
+        # Some BLE proxy paths may not fire connected callback reliably;
+        # if datapoints were received we should still expose entities as available.
+        return (not self._disconnected) or (len(self._device.datapoints) > 0)
 
     @callback
     def _async_handle_connect(self) -> None:
         if self._unsub_disconnect is not None:
             self._unsub_disconnect()
         if self._disconnected:
+            _LOGGER.debug("%s: coordinator connected callback", self._device.address)
             self._disconnected = False
             self.async_update_listeners()
 
@@ -307,6 +314,7 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
         """Trigger the callbacks for disconnected."""
         if self._unsub_disconnect is None:
             delay: float = SET_DISCONNECTED_DELAY
+            _LOGGER.debug("%s: coordinator disconnect callback, marking unavailable in %ss", self._device.address, delay)
             self._unsub_disconnect = async_call_later(
                 self.hass, delay, self._set_disconnected
             )
