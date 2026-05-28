@@ -27,7 +27,8 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowHandler, FlowResult
 
-from .tuya_ble import SERVICE_UUID, MANUFACTURER_DATA_ID, TuyaBLEDeviceCredentials
+from .tuya_ble import SERVICE_UUID, TuyaBLEDeviceCredentials
+from .tuya_ble.const import MANUFACTURER_DATA_ID
 
 from .const import (
     DOMAIN,
