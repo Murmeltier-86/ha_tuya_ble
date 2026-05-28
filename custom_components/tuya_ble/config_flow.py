@@ -43,6 +43,7 @@ from .const import (
     TUYA_SMART_APP,
     TUYA_COUNTRIES
 )
+from .debug_log import setup_private_debug_log
 from .devices import TuyaBLEData, get_device_readable_name
 from .cloud import HASSTuyaBLEDeviceManager
 
@@ -215,6 +216,10 @@ class TuyaBLEConfigFlow(ConfigFlow, domain=DOMAIN):
         self, discovery_info: BluetoothServiceInfoBleak
     ) -> FlowResult:
         """Handle the bluetooth discovery step."""
+        setup_private_debug_log(self.hass)
+        _LOGGER.info(
+            "Bluetooth discovery flow started for %s", discovery_info.address
+        )
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
         self._discovery_info = discovery_info
@@ -233,6 +238,8 @@ class TuyaBLEConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the user step."""
+        setup_private_debug_log(self.hass)
+        _LOGGER.info("Manual config flow started")
         if self._manager is None:
             self._manager = HASSTuyaBLEDeviceManager(self.hass, self._data)
         await self._manager.build_cache()

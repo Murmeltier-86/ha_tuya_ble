@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from dataclasses import dataclass
+import hashlib
 import json
 from typing import Any, Iterable
 
@@ -367,7 +368,10 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
                         cache_key = key
                         break
             if cache_key:
-                _LOGGER.debug("Using Tuya cloud cache key: %s", cache_key)
+                _LOGGER.debug(
+                    "Using Tuya cloud cache key hash: %s",
+                    hashlib.sha256(cache_key.encode()).hexdigest()[:12],
+                )
                 item = _cache.get(cache_key)
             else:
                 _LOGGER.debug("No Tuya cloud cache key found for %s", normalized_address)
