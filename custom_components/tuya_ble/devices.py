@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 
 import logging
@@ -248,7 +249,7 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=None,
+            update_interval=timedelta(seconds=30),
         )
         self._device = device
         self._disconnected: bool = True
@@ -258,21 +259,17 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
         device.register_disconnected_callback(self._async_handle_disconnect)
 
     async def _async_update_data(self) -> None:
-        """Refresh latest datapoints when explicitly requested."""
+        """Poll latest datapoints from the device."""
         try:
             await self._device.update()
             if self._disconnected:
-                _LOGGER.debug(
-                    "%s: update succeeded; marking coordinator connected",
-                    self._device.address,
-                )
+                _LOGGER.debug("%s: update succeeded; marking coordinator connected", self._device.address)
             self._disconnected = False
         except Exception:
-            _LOGGER.debug(
-                "%s: explicit update failed",
-                self._device.address,
-                exc_info=True,
-            )
+            _LOGGER.debug("%s: periodic update failed", self._device.address, exc_info=True)
+            # Keep the last known state and avoid surfacing transient BLE/proxy
+            # misses as system log errors. Availability is driven by callbacks and
+            # retained datapoints, not every single poll succeeding.
             return None
 
     @property

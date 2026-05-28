@@ -90,24 +90,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    hass.async_create_task(device.update_from_cloud())
+    hass.async_create_task(coordinator.async_request_refresh())
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     async def _async_stop(event: Event) -> None:
         """Close the connection."""
-        await _async_stop_device(device)
+        await device.stop()
 
     entry.async_on_unload(
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_stop)
     )
     return True
-
-
-async def _async_stop_device(device: TuyaBLEDevice) -> None:
-    """Stop a Tuya BLE device without blocking Home Assistant shutdown/unload."""
-    try:
-        await asyncio.wait_for(device.stop(), timeout=5)
-    except (asyncio.TimeoutError, BLEAK_EXCEPTIONS, OSError):
-        _LOGGER.debug("Timed out or failed while stopping Tuya BLE device", exc_info=True)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -121,6 +115,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         data: TuyaBLEData = hass.data[DOMAIN].pop(entry.entry_id)
-        await _async_stop_device(data.device)
+        await data.device.stop()
 
     return unload_ok
