@@ -740,14 +740,17 @@ class TuyaBLEDevice:
             self._client = None
             if client and client.is_connected:
                 try:
-                    await client.stop_notify(self._notify_char)
-                except BLEAK_EXCEPTIONS:
+                    await asyncio.wait_for(
+                        client.stop_notify(self._notify_char),
+                        timeout=5,
+                    )
+                except (asyncio.TimeoutError, *BLEAK_EXCEPTIONS):
                     _LOGGER.debug(
                         "%s: stop_notify failed during disconnect",
                         self.address,
                         exc_info=True,
                     )
-                await client.disconnect()
+                await asyncio.wait_for(client.disconnect(), timeout=5)
         async with self._seq_num_lock:
             self._current_seq_num = 1
 
@@ -767,8 +770,8 @@ class TuyaBLEDevice:
                     self.address,
                     reason,
                 )
-                await client.disconnect()
-        except BLEAK_EXCEPTIONS:
+                await asyncio.wait_for(client.disconnect(), timeout=5)
+        except (asyncio.TimeoutError, *BLEAK_EXCEPTIONS):
             _LOGGER.debug(
                 "%s: Error while disconnecting failed setup connection",
                 self.address,
@@ -1261,10 +1264,6 @@ class TuyaBLEDevice:
                 BLEAK_BACKOFF_TIME,
                 ex,
             )
-            if self._is_paired:
-                asyncio.create_task(self._resend_packets(packets))
-            else:
-                asyncio.create_task(self._reconnect())
             raise BleakError from ex
         except BleakError as ex:
             # Disconnect so we can reset state and try again
@@ -1274,10 +1273,6 @@ class TuyaBLEDevice:
                 self.rssi,
                 ex,
             )
-            if self._is_paired:
-                asyncio.create_task(self._resend_packets(packets))
-            else:
-                asyncio.create_task(self._reconnect())
             raise
 
     async def _int_send_packets_locked(self, packets: list[bytes]) -> None:
@@ -1286,13 +1281,16 @@ class TuyaBLEDevice:
             if self._client:
                 try:
                     # _LOGGER.debug("%s: Sending packet: %s", self.address, packet.hex())
-                    await self._client.write_gatt_char(
-                        self._write_char,
-                        packet,
-                        response=self._write_with_response,
+                    await asyncio.wait_for(
+                        self._client.write_gatt_char(
+                            self._write_char,
+                            packet,
+                            response=self._write_with_response,
+                        ),
+                        timeout=10,
                     )
                 except:
-                    _LOGGER.error(
+                    _LOGGER.debug(
                         "%s: Error during sending packet",
                         self.address,
                         exc_info=True,
@@ -1301,7 +1299,7 @@ class TuyaBLEDevice:
                         self._disconnected(self._client)
                     raise BleakError()
             else:
-                _LOGGER.error(
+                _LOGGER.debug(
                     "%s: Client disconnected during sending packet",
                     self.address,
                     exc_info=True,
