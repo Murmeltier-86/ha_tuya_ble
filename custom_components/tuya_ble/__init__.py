@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 
 from bleak_retry_connector import BLEAK_RETRY_EXCEPTIONS as BLEAK_EXCEPTIONS, get_device
 
@@ -60,7 +61,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     '''
     async def _async_initial_update() -> None:
         try:
-            await device.update()
+            await asyncio.wait_for(device.update(), timeout=10)
+        except TimeoutError:
+            _LOGGER.debug("Initial Tuya BLE update timed out for %s", address, exc_info=True)
         except BLEAK_EXCEPTIONS:
             _LOGGER.debug("Initial Tuya BLE update failed for %s", address, exc_info=True)
 

@@ -269,6 +269,7 @@ class TuyaBLEDevice:
         self._notify_char = CHARACTERISTIC_NOTIFY
         self._write_char = CHARACTERISTIC_WRITE
         self._notify_failures = 0
+        self._next_reconnect_ts = 0.0
         self._connected_callbacks: list[Callable[[], None]] = []
         self._callbacks: list[Callable[[list[TuyaBLEDataPoint]], None]] = []
         self._disconnected_callbacks: list[Callable[[], None]] = []
