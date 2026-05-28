@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 
 import logging
@@ -17,6 +18,7 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
+    UpdateFailed,
 )
 
 from homeassistant.components.tuya.const import DPCode
@@ -248,6 +250,7 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
             hass,
             _LOGGER,
             name=DOMAIN,
+            update_interval=timedelta(seconds=30),
         )
         self._device = device
         self._disconnected: bool = True
@@ -255,6 +258,13 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
         device.register_connected_callback(self._async_handle_connect)
         device.register_callback(self._async_handle_update)
         device.register_disconnected_callback(self._async_handle_disconnect)
+
+    async def _async_update_data(self) -> None:
+        """Poll latest datapoints from the device."""
+        try:
+            await self._device.update()
+        except Exception as ex:
+            raise UpdateFailed(f"Failed to update Tuya BLE device {self._device.address}") from ex
 
     @property
     def connected(self) -> bool:
