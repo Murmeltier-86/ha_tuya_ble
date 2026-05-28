@@ -5,6 +5,7 @@ import hashlib
 import logging
 import secrets
 import time
+from time import monotonic
 from collections.abc import Callable
 from struct import pack, unpack
 from dataclasses import dataclass
@@ -613,11 +614,16 @@ class TuyaBLEDevice:
         self._client = None
         if self._notifications_unsupported:
             return
-        _LOGGER.warning(
-            "%s: Device unexpectedly disconnected; RSSI: %s",
-            self.address,
-            self.rssi,
-        )
+        now = monotonic()
+        if now >= self._next_reconnect_ts:
+            _LOGGER.warning(
+                "%s: Device unexpectedly disconnected; RSSI: %s",
+                self.address,
+                self.rssi,
+            )
+            self._next_reconnect_ts = now + 30.0
+        else:
+            _LOGGER.debug("%s: Device unexpectedly disconnected; RSSI: %s", self.address, self.rssi)
         _LOGGER.debug(
             "%s: Scheduling reconnect; RSSI: %s",
             self.address,
@@ -745,6 +751,7 @@ class TuyaBLEDevice:
                             self._notify_char, self._notification_handler
                         )
                         self._notify_failures = 0
+                        self._next_reconnect_ts = 0.0
                     except BleakCharacteristicNotFoundError:
                         self._notifications_unsupported = True
                         self._expected_disconnect = True
@@ -757,16 +764,16 @@ class TuyaBLEDevice:
                     except:  # [BLEAK_EXCEPTIONS, BleakNotFoundError]:
                         self._client = None
                         self._notify_failures += 1
-                        if self._notify_failures >= 3:
-                            self._notifications_unsupported = True
-                            self._expected_disconnect = True
-                            _LOGGER.error(
-                                "%s: starting notifications failed repeatedly; disabling Tuya BLE control for this device",
+                        if self._notify_failures % 10 == 1:
+                            _LOGGER.warning(
+                                "%s: starting notifications failed (attempt %s); will retry",
                                 self.address,
+                                self._notify_failures,
                                 exc_info=True,
                             )
-                            raise BleakNotFoundError()
-                        _LOGGER.debug("%s: starting notifications failed (attempt %s)", self.address, self._notify_failures, exc_info=True)
+                        else:
+                            _LOGGER.debug("%s: starting notifications failed (attempt %s)", self.address, self._notify_failures, exc_info=True)
+                        await asyncio.sleep(min(5, self._notify_failures))
                         continue
                 else:
                     continue
