@@ -898,12 +898,28 @@ class TuyaBLEDevice:
                         and has_cccd
                     ):
                         notify_char = char
-                    if (
-                        write_char is None
-                        and is_tuya_candidate
-                        and ("write" in props or "write-without-response" in props)
+                    if is_tuya_candidate and (
+                        "write" in props or "write-without-response" in props
                     ):
-                        write_char = char
+                        # Some Tuya devices expose one characteristic for notify
+                        # and a second write-without-response characteristic for
+                        # commands.  Prefer the dedicated write characteristic;
+                        # using the notify characteristic for writes can fail with
+                        # ESPHome proxies as "Write not permitted" even when the
+                        # cached properties contain "write".
+                        if (
+                            write_char is None
+                            or (
+                                notify_char is not None
+                                and write_char.uuid == notify_char.uuid
+                                and char.uuid != notify_char.uuid
+                            )
+                            or (
+                                "write-without-response" in props
+                                and "write" not in set(write_char.properties or [])
+                            )
+                        ):
+                            write_char = char
 
         if notify_char is not None:
             self._notify_char = notify_char.uuid
