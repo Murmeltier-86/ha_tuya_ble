@@ -227,6 +227,8 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
                                 if status:
                                     item.credentials[mac][CONF_STATUS_RANGE] = status
 
+        _LOGGER.debug("Loaded Tuya cloud credentials for %s devices", len(item.credentials))
+
     async def build_cache(self) -> None:
         global _cache
         data = {}
@@ -272,8 +274,16 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
         credentials: dict[str, any] | None = None
         result: TuyaBLEDeviceCredentials | None = None
         normalized_address = address.replace("-", ":").upper()
+        _LOGGER.debug(
+            "Requesting Tuya BLE credentials for address=%s normalized=%s force_update=%s save_data=%s",
+            address,
+            normalized_address,
+            force_update,
+            save_data,
+        )
 
         if not force_update and self._has_credentials(self._data):
+            _LOGGER.debug("Using device credentials already present in manager data")
             credentials = self._data.copy()
         else:
             cache_key: str | None = None
@@ -285,18 +295,24 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
                         cache_key = key
                         break
             if cache_key:
+                _LOGGER.debug("Using Tuya cloud cache key: %s", cache_key)
                 item = _cache.get(cache_key)
+            else:
+                _LOGGER.debug("No Tuya cloud cache key found for %s", normalized_address)
 
             if item is None or force_update:
+                _LOGGER.debug("Refreshing Tuya cloud login/cache (item_missing=%s, force_update=%s)", item is None, force_update)
                 if self._is_login_success(await self.login(True)):
-                    item = _cache.get(cache_key)
+                    item = _cache.get(self._get_cache_key(self._data))
                     if item:
                         await self._fill_cache_item(item)
 
             if item:
+                _LOGGER.debug("Cache contains %s credential entries", len(item.credentials))
                 credentials = item.credentials.get(normalized_address)
 
         if credentials:
+            _LOGGER.debug("Found Tuya cloud credentials for %s", normalized_address)
             result = TuyaBLEDeviceCredentials(
                 credentials.get(CONF_UUID, ""),
                 credentials.get(CONF_LOCAL_KEY, ""),
@@ -314,6 +330,15 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
                 if item:
                     self._data.update(item.login)
                 self._data.update(credentials)
+
+        if not result:
+            available_addresses = list(item.credentials.keys()) if item else []
+            _LOGGER.warning(
+                "No Tuya cloud credentials found for BLE address %s (normalized %s). Known cached addresses: %s",
+                address,
+                normalized_address,
+                available_addresses,
+            )
 
         return result
 
