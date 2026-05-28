@@ -850,6 +850,25 @@ class TuyaBLEDevice:
         notify_char = self._client.services.get_characteristic(CHARACTERISTIC_NOTIFY)
         write_char = self._client.services.get_characteristic(CHARACTERISTIC_WRITE)
 
+        if notify_char is not None and not self._is_tuya_or_vendor_characteristic(
+            "", notify_char.uuid
+        ):
+            _LOGGER.debug(
+                "%s: Ignoring non-Tuya notify characteristic returned by cache: %s",
+                self.address,
+                notify_char.uuid,
+            )
+            notify_char = None
+        if write_char is not None and not self._is_tuya_or_vendor_characteristic(
+            "", write_char.uuid
+        ):
+            _LOGGER.debug(
+                "%s: Ignoring non-Tuya write characteristic returned by cache: %s",
+                self.address,
+                write_char.uuid,
+            )
+            write_char = None
+
         if notify_char is None or write_char is None:
             for service in self._client.services:
                 for char in service.characteristics:
@@ -925,8 +944,16 @@ class TuyaBLEDevice:
     async def _ensure_connected(self, force: bool = False) -> None:
         """Ensure connection to device is established."""
         global global_connect_lock
-        if self._expected_disconnect or self._notifications_unsupported:
+        if self._expected_disconnect:
             return
+        if self._notifications_unsupported:
+            if not force:
+                return
+            _LOGGER.debug(
+                "%s: retrying local BLE connection after previous notify unsupported state",
+                self.address,
+            )
+            self._notifications_unsupported = False
         if force:
             self._notify_retry_block_until = 0.0
         elif monotonic() < self._notify_retry_block_until:
@@ -1259,12 +1286,25 @@ class TuyaBLEDevice:
         # retry: int | None = None,
     ) -> None:
         """Send packet to device and optional read response."""
-        if self._expected_disconnect or self._notifications_unsupported:
+        if self._expected_disconnect:
             return
+        if self._notifications_unsupported:
+            if force_connect:
+                _LOGGER.debug(
+                    "%s: forcing local send despite previous notify unsupported state",
+                    self.address,
+                )
+                self._notifications_unsupported = False
+            else:
+                return
         if not force_connect and monotonic() < self._notify_retry_block_until:
             return
         await self._ensure_connected(force_connect)
-        if self._expected_disconnect or self._notifications_unsupported:
+        if self._expected_disconnect:
+            return
+        if self._notifications_unsupported:
+            if force_connect:
+                raise BleakNotFoundError()
             return
         if not force_connect and monotonic() < self._notify_retry_block_until:
             return
@@ -1827,35 +1867,14 @@ class TuyaBLEDevice:
     async def _send_datapoints(
         self, datapoint_ids: list[int], force_connect: bool = False
     ) -> None:
-        """Send new values of datapoints to the device."""
-        if self.product_id in ROBOT_MOWER_PRODUCT_IDS:
-            cloud_sent = await self._send_datapoints_cloud(datapoint_ids)
-            if cloud_sent:
-                _LOGGER.debug(
-                    "%s: sent robot mower datapoints through Tuya cloud: %s",
-                    self.address,
-                    datapoint_ids,
-                )
-                return
-            _LOGGER.debug(
-                "%s: robot mower cloud command failed; trying local BLE send",
-                self.address,
-            )
-
-        local_error: Exception | None = None
+        """Send new values of datapoints to the device locally over BLE."""
+        _LOGGER.debug(
+            "%s: sending datapoints locally over BLE only: %s",
+            self.address,
+            datapoint_ids,
+        )
         if self._protocol_version == 3:
-            try:
-                await self._send_datapoints_v3(datapoint_ids, force_connect)
-            except Exception as ex:
-                local_error = ex
-                _LOGGER.debug(
-                    "%s: local datapoint send failed; trying cloud command fallback",
-                    self.address,
-                    exc_info=True,
-                )
-        else:
-            local_error = TuyaBLEDeviceError(0)
+            await self._send_datapoints_v3(datapoint_ids, force_connect)
+            return
 
-        cloud_sent = await self._send_datapoints_cloud(datapoint_ids)
-        if local_error and not cloud_sent:
-            raise local_error
+        raise TuyaBLEDeviceError(0)
