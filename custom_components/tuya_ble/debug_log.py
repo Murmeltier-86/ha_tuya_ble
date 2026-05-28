@@ -24,7 +24,9 @@ def setup_private_debug_log(hass: HomeAssistant) -> Path:
     Home Assistant Core/system logs.
     """
 
-    log_path = Path(hass.config.path(DEBUG_LOG_FILE))
+    # Keep the diagnostic log next to the custom integration files instead of
+    # writing it into Home Assistant's main configuration/log directory.
+    log_path = Path(__file__).resolve().parent / DEBUG_LOG_FILE
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     formatter = logging.Formatter(
@@ -45,6 +47,11 @@ def setup_private_debug_log(hass: HomeAssistant) -> Path:
             ),
             None,
         )
+        if handler is not None and Path(handler.baseFilename) != log_path:
+            logger.removeHandler(handler)
+            handler.close()
+            handler = None
+
         if handler is None:
             handler = RotatingFileHandler(
                 log_path,

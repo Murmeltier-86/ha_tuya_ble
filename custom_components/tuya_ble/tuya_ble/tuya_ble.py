@@ -1873,8 +1873,4 @@ class TuyaBLEDevice:
             self.address,
             datapoint_ids,
         )
-        if self._protocol_version == 3:
-            await self._send_datapoints_v3(datapoint_ids, force_connect)
-            return
-
-        raise TuyaBLEDeviceError(0)
+        await self._send_datapoints_v3(datapoint_ids, force_connect)
