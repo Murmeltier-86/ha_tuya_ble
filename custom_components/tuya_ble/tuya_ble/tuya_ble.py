@@ -249,6 +249,47 @@ class TuyaBLEDeviceFunction:
                 value = v
         super().__setattr__(name, value)
 
+ROBOT_MOWER_CLOUD_STATUS: dict[str, tuple[int, TuyaBLEDataPointType]] = {
+    "switch_go": (2, TuyaBLEDataPointType.DT_BOOL),
+    "mode": (3, TuyaBLEDataPointType.DT_ENUM),
+    "status": (5, TuyaBLEDataPointType.DT_ENUM),
+    "battery_percentage": (13, TuyaBLEDataPointType.DT_VALUE),
+    "MachineStatus": (101, TuyaBLEDataPointType.DT_ENUM),
+    "MachineError": (102, TuyaBLEDataPointType.DT_VALUE),
+    "MachineWarning": (103, TuyaBLEDataPointType.DT_ENUM),
+    "MachineRainMode": (104, TuyaBLEDataPointType.DT_BOOL),
+    "MachineWorktime": (105, TuyaBLEDataPointType.DT_VALUE),
+    "MachinePassword": (106, TuyaBLEDataPointType.DT_VALUE),
+    "ClearAppointment": (107, TuyaBLEDataPointType.DT_BOOL),
+    "QueryAppointment": (108, TuyaBLEDataPointType.DT_BOOL),
+    "QueryPartition": (109, TuyaBLEDataPointType.DT_BOOL),
+    "MachineAppointment": (110, TuyaBLEDataPointType.DT_STRING),
+    "MachineErrorLog": (111, TuyaBLEDataPointType.DT_STRING),
+    "MachineWorkLog": (112, TuyaBLEDataPointType.DT_STRING),
+    "MachinePartition": (113, TuyaBLEDataPointType.DT_STRING),
+    "boolreserved01": (114, TuyaBLEDataPointType.DT_BOOL),
+    "MachineControlCmd": (115, TuyaBLEDataPointType.DT_ENUM),
+    "MachineCover": (116, TuyaBLEDataPointType.DT_BOOL),
+    "boolreserved03": (118, TuyaBLEDataPointType.DT_BOOL),
+    "strreserved01": (134, TuyaBLEDataPointType.DT_STRING),
+    "rawreserved01": (139, TuyaBLEDataPointType.DT_STRING),
+}
+
+ROBOT_MOWER_ENUM_OPTIONS: dict[int, list[str]] = {
+    3: ["standby", "random", "smart", "spot", "goto_charge"],
+    115: [
+        "PauseWork",
+        "CancelWork",
+        "ContinueWork",
+        "StartMowing",
+        "StartFixedMowing",
+        "StartReturnStation",
+    ],
+}
+
+ROBOT_MOWER_PRODUCT_IDS = {"7yr5iwga", "mvt4l2evgq2l3nkn", "icw5sal7xfcevsve"}
+
+
 class TuyaBLEDevice:
     def __init__(
         self,
@@ -360,32 +401,19 @@ class TuyaBLEDevice:
         if not statuses:
             return
 
-        if not self.status_range and not self.function:
-            _LOGGER.debug(
-                "%s: Cannot map Tuya cloud status fallback without DP metadata",
-                self.address,
-            )
-            return
-
         datapoints: list[TuyaBLEDataPoint] = []
         for status in statuses:
             if not isinstance(status, dict):
                 continue
             code = status.get("code")
             value = status.get("value")
-            dp_id = None
-            dp_type = None
-            if code in self.status_range:
-                status_info = self.status_range[code]
-                dp_id = status_info.dp_id
-                dp_type = status_info.type
-            elif code in self.function:
-                function_info = self.function[code]
-                dp_id = function_info.dp_id
-                dp_type = function_info.type
-
-            data_type = self._dp_type_to_data_point_type(dp_type, value)
+            dp_id, data_type = self._cloud_status_mapping(code, value)
             if dp_id is None or data_type is None:
+                _LOGGER.debug(
+                    "%s: Unmapped Tuya cloud status code %s",
+                    self.address,
+                    code,
+                )
                 continue
 
             self._datapoints._update_from_device(
@@ -407,6 +435,28 @@ class TuyaBLEDevice:
             )
             self._fire_callbacks(datapoints)
 
+    def _cloud_status_mapping(
+        self, code: str | None, value: bytes | bool | int | str | None
+    ) -> tuple[int | None, TuyaBLEDataPointType | None]:
+        """Map a Tuya cloud status code to a local datapoint id/type."""
+        if not code:
+            return None, None
+
+        for functions in (self.status_range, self.function):
+            function_info = functions.get(code)
+            if function_info:
+                return (
+                    function_info.dp_id,
+                    self._dp_type_to_data_point_type(function_info.type, value),
+                )
+
+        if self.product_id in ROBOT_MOWER_PRODUCT_IDS:
+            fallback = ROBOT_MOWER_CLOUD_STATUS.get(code)
+            if fallback:
+                return fallback
+
+        return None, None
+
     @staticmethod
     def _dp_type_to_data_point_type(
         dp_type: DPType | None, value: bytes | bool | int | str | None
@@ -417,11 +467,7 @@ class TuyaBLEDevice:
         if dp_type == DPType.INTEGER:
             return TuyaBLEDataPointType.DT_VALUE
         if dp_type == DPType.ENUM:
-            return (
-                TuyaBLEDataPointType.DT_STRING
-                if isinstance(value, str)
-                else TuyaBLEDataPointType.DT_ENUM
-            )
+            return TuyaBLEDataPointType.DT_ENUM
         if dp_type == DPType.STRING or dp_type == DPType.JSON or isinstance(value, str):
             return TuyaBLEDataPointType.DT_STRING
         if dp_type == DPType.RAW:
@@ -1621,6 +1667,60 @@ class TuyaBLEDevice:
         elif len(self._input_buffer) == self._input_expected_length:
             self._parse_input()
 
+    def _cloud_command_for_datapoint(self, dp_id: int) -> dict | None:
+        """Build a Tuya cloud command for a local datapoint, if known."""
+        dp = self._datapoints[dp_id]
+        code = None
+        options = None
+
+        for functions in (self.function, self.status_range):
+            for dpcode, function_info in functions.items():
+                if function_info.dp_id == dp_id:
+                    code = dpcode
+                    if isinstance(function_info.values, dict):
+                        value_range = function_info.values.get("range")
+                        if isinstance(value_range, list):
+                            options = value_range
+                    break
+            if code:
+                break
+
+        if self.product_id in ROBOT_MOWER_PRODUCT_IDS:
+            for fallback_code, (fallback_dp_id, _) in ROBOT_MOWER_CLOUD_STATUS.items():
+                if fallback_dp_id == dp_id:
+                    code = code or fallback_code
+                    options = options or ROBOT_MOWER_ENUM_OPTIONS.get(dp_id)
+                    break
+
+        if not code:
+            return None
+
+        value = dp.value
+        if dp.type == TuyaBLEDataPointType.DT_ENUM and isinstance(value, int) and options:
+            if value < 0 or value >= len(options):
+                return None
+            value = options[value]
+
+        return {"code": code, "value": value}
+
+    async def _send_datapoints_cloud(self, datapoint_ids: list[int]) -> bool:
+        """Send datapoint updates through Tuya cloud when possible."""
+        if not self._device_info or not self._device_manager:
+            return False
+
+        commands = [
+            command
+            for dp_id in datapoint_ids
+            if (command := self._cloud_command_for_datapoint(dp_id)) is not None
+        ]
+        if not commands:
+            return False
+
+        return await self._device_manager.send_device_commands(
+            self._device_info.device_id,
+            commands,
+        )
+
     async def _send_datapoints_v3(self, datapoint_ids: list[int], force_connect: bool = False) -> None:
         """Send new values of datapoints to the device."""
         data = bytearray()
@@ -1647,7 +1747,20 @@ class TuyaBLEDevice:
         self, datapoint_ids: list[int], force_connect: bool = False
     ) -> None:
         """Send new values of datapoints to the device."""
+        local_error: Exception | None = None
         if self._protocol_version == 3:
-            await self._send_datapoints_v3(datapoint_ids, force_connect)
+            try:
+                await self._send_datapoints_v3(datapoint_ids, force_connect)
+            except Exception as ex:
+                local_error = ex
+                _LOGGER.debug(
+                    "%s: local datapoint send failed; trying cloud command fallback",
+                    self.address,
+                    exc_info=True,
+                )
         else:
-            raise TuyaBLEDeviceError(0)
+            local_error = TuyaBLEDeviceError(0)
+
+        cloud_sent = await self._send_datapoints_cloud(datapoint_ids)
+        if local_error and not cloud_sent:
+            raise local_error

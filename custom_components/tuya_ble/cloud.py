@@ -48,6 +48,7 @@ from .const import (
     TUYA_API_FACTORY_INFO_URL,
     TUYA_API_DEVICE_SPECIFICATION,
     TUYA_API_DEVICE_STATUS,
+    TUYA_API_DEVICE_COMMANDS,
     TUYA_FACTORY_INFO_MAC,
     TUYA_API_DEVICES_URL,
     TUYA_API_FACTORY_INFO_URL,
@@ -264,15 +265,10 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
             break
 
 
-    async def get_device_status(
-        self,
-        device_id: str,
-    ) -> list[dict] | None:
-        """Get current datapoint status values from Tuya cloud."""
-        global _cache
 
-        if not device_id:
-            return None
+    async def _get_api_session(self) -> TuyaCloudCacheItem | None:
+        """Return a logged-in Tuya cloud cache item for this manager."""
+        global _cache
 
         item: TuyaCloudCacheItem | None = None
         if self._has_login(self._data):
@@ -282,6 +278,17 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
             if self._is_login_success(await self.login(True)):
                 item = _cache.get(self._get_cache_key(self._data))
 
+        return item if item and item.api else None
+
+    async def get_device_status(
+        self,
+        device_id: str,
+    ) -> list[dict] | None:
+        """Get current datapoint status values from Tuya cloud."""
+        if not device_id:
+            return None
+
+        item = await self._get_api_session()
         if item is None or item.api is None:
             _LOGGER.debug("Cannot fetch Tuya cloud status for %s: no API session", device_id)
             return None
@@ -299,6 +306,33 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
                 return properties
         _LOGGER.debug("Unexpected Tuya cloud status response for %s: %s", device_id, response)
         return None
+
+
+    async def send_device_commands(
+        self,
+        device_id: str,
+        commands: list[dict],
+    ) -> bool:
+        """Send device commands through Tuya cloud."""
+        if not device_id or not commands:
+            return False
+
+        item = await self._get_api_session()
+        if item is None or item.api is None:
+            _LOGGER.debug("Cannot send Tuya cloud commands for %s: no API session", device_id)
+            return False
+
+        response = await self._hass.async_add_executor_job(
+            item.api.post,
+            TUYA_API_DEVICE_COMMANDS % device_id,
+            {"commands": commands},
+        )
+        success = self._is_login_success(response)
+        if success:
+            _LOGGER.debug("Sent %s Tuya cloud commands for %s", len(commands), device_id)
+        else:
+            _LOGGER.debug("Tuya cloud command failed for %s: %s", device_id, response)
+        return success
 
     async def get_device_credentials(
         self,

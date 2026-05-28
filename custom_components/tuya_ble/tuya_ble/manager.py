@@ -58,6 +58,14 @@ class AbstaractTuyaBLEDeviceManager(ABC):
         """Get current device datapoint status from the cloud, if supported."""
         return None
 
+    async def send_device_commands(
+        self,
+        device_id: str,
+        commands: list[dict],
+    ) -> bool:
+        """Send device commands through the cloud, if supported."""
+        return False
+
     @classmethod
     def check_and_create_device_credentials(
         self,
