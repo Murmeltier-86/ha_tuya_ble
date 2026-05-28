@@ -267,6 +267,7 @@ class TuyaBLEDevice:
         self._notifications_unsupported = False
         self._notify_char = CHARACTERISTIC_NOTIFY
         self._write_char = CHARACTERISTIC_WRITE
+        self._notify_failures = 0
         self._connected_callbacks: list[Callable[[], None]] = []
         self._callbacks: list[Callable[[list[TuyaBLEDataPoint]], None]] = []
         self._disconnected_callbacks: list[Callable[[], None]] = []
@@ -661,7 +662,8 @@ class TuyaBLEDevice:
             for service in self._client.services:
                 for char in service.characteristics:
                     props = set(char.properties or [])
-                    if notify_char is None and ("notify" in props or "indicate" in props):
+                    has_cccd = any(getattr(d, "uuid", "").lower() == "00002902-0000-1000-8000-00805f9b34fb" for d in (char.descriptors or []))
+                    if notify_char is None and ("notify" in props or "indicate" in props) and has_cccd:
                         notify_char = char
                     if write_char is None and ("write" in props or "write-without-response" in props):
                         write_char = char
@@ -742,6 +744,7 @@ class TuyaBLEDevice:
                         await self._client.start_notify(
                             self._notify_char, self._notification_handler
                         )
+                        self._notify_failures = 0
                     except BleakCharacteristicNotFoundError:
                         self._notifications_unsupported = True
                         self._expected_disconnect = True
@@ -753,8 +756,17 @@ class TuyaBLEDevice:
                         raise BleakNotFoundError()
                     except:  # [BLEAK_EXCEPTIONS, BleakNotFoundError]:
                         self._client = None
-                        _LOGGER.error("%s: starting notifications failed",
-                                      self.address, exc_info=True)
+                        self._notify_failures += 1
+                        if self._notify_failures >= 3:
+                            self._notifications_unsupported = True
+                            self._expected_disconnect = True
+                            _LOGGER.error(
+                                "%s: starting notifications failed repeatedly; disabling Tuya BLE control for this device",
+                                self.address,
+                                exc_info=True,
+                            )
+                            raise BleakNotFoundError()
+                        _LOGGER.debug("%s: starting notifications failed (attempt %s)", self.address, self._notify_failures, exc_info=True)
                         continue
                 else:
                     continue
