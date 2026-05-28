@@ -314,10 +314,11 @@ class TuyaBLESelect(TuyaBLEEntity, SelectEntity):
         datapoint = self._device.datapoints[self._mapping.dp_id]
         if datapoint:
             value = datapoint.value
-            if value >= 0 and value < len(self._attr_options):
+            if isinstance(value, int) and value >= 0 and value < len(self._attr_options):
                 return self._attr_options[value]
-            else:
+            if isinstance(value, str):
                 return value
+            return str(value)
         return None
 
     def select_option(self, value: str) -> None:

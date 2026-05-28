@@ -625,7 +625,7 @@ class TuyaBLEDevice:
             return
         now = monotonic()
         if now >= self._next_reconnect_ts:
-            _LOGGER.warning(
+            _LOGGER.debug(
                 "%s: Device unexpectedly disconnected; RSSI: %s",
                 self.address,
                 self.rssi,
@@ -745,7 +745,7 @@ class TuyaBLEDevice:
             while attempts_count > 0:
                 attempts_count -= 1
                 if attempts_count == 0:
-                    _LOGGER.error(
+                    _LOGGER.debug(
                         "%s: Connecting, all attempts failed; RSSI: %s",
                         self.address,
                         self.rssi,
@@ -765,7 +765,7 @@ class TuyaBLEDevice:
                             ble_device_callback=lambda: self._ble_device,
                         )
                 except BleakNotFoundError:
-                    _LOGGER.error(
+                    _LOGGER.debug(
                         "%s: device not found, not in range, or poor RSSI: %s",
                         self.address,
                         self.rssi,
@@ -811,7 +811,7 @@ class TuyaBLEDevice:
                         )
                         self._notify_failures += 1
                         if self._notify_failures % 10 == 1:
-                            _LOGGER.warning(
+                            _LOGGER.debug(
                                 "%s: starting notifications failed (attempt %s); will retry",
                                 self.address,
                                 self._notify_failures,
@@ -821,7 +821,7 @@ class TuyaBLEDevice:
                             _LOGGER.debug("%s: starting notifications failed (attempt %s)", self.address, self._notify_failures, exc_info=True)
                         if self._notify_failures >= 5:
                             self._notify_retry_block_until = monotonic() + 30
-                            _LOGGER.warning(
+                            _LOGGER.debug(
                                 "%s: pausing notify retries for 30 seconds",
                                 self.address,
                             )

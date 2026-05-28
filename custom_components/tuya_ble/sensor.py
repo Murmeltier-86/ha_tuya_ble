@@ -284,6 +284,63 @@ mapping: dict[str, TuyaBLECategorySensorMapping] = {
                         ],
                     ),
                 ),
+                TuyaBLESensorMapping(
+                    dp_id=103,
+                    description=SensorEntityDescription(
+                        key="problem",
+                        icon="mdi:robot-mower-outline",
+                        device_class=SensorDeviceClass.ENUM,
+                        entity_category=EntityCategory.DIAGNOSTIC,
+                        options=[
+                            "MOWER_LEAN",
+                            "MOWER_STEEP",
+                            "RAIN_PARK",
+                            "BATTERY_NOT_ENOUGH",
+                            "NO_LOOP_SIGNAL",
+                            "CLOSE_TOPCOVER",
+                            "MOWER_IN_STATION",
+                            "MOWER_OUT_STATION",
+                            "PLACE_INSIDE",
+                            "FIXED_END",
+                            "CHARGING_DISCONNECT",
+                            "CHARGING_PAUSE",
+                            "WORK_INTERRUPT",
+                            "FIXED_MOWING_INTERUPT",
+                            "TURN_ON_BUTTON",
+                            "PRESS_START_KEY",
+                            "TIMESET_30MIN",
+                            "TIMESET_UNLEGAL",
+                            "CHARGR_CURRENT_LOW",
+                            "RAIN_OUT_STATION",
+                            "UPDATA_FAIL",
+                            "CONTINUE_TOOLTIP",
+                            "MOWER_EMERGENCY",
+                            "MOWER_UI_LOCKED",
+                            "DISCHARGE_ERROR",
+                            "CHARGE_TEMP_ERROR",
+                            "HEDGEHOG",
+                            "NTC",
+                        ],
+                    ),
+                ),
+                TuyaBLESensorMapping(
+                    dp_id=111,
+                    description=SensorEntityDescription(
+                        key="machine_error_log",
+                        icon="mdi:alert-box",
+                        entity_category=EntityCategory.DIAGNOSTIC,
+                        entity_registry_enabled_default=False,
+                    ),
+                ),
+                TuyaBLESensorMapping(
+                    dp_id=112,
+                    description=SensorEntityDescription(
+                        key="machine_work_log",
+                        icon="mdi:clipboard-text-clock",
+                        entity_category=EntityCategory.DIAGNOSTIC,
+                        entity_registry_enabled_default=False,
+                    ),
+                ),
             ],
         },
     ),
@@ -551,8 +608,10 @@ class TuyaBLESensor(TuyaBLEEntity, SensorEntity):
             if datapoint:
                 if datapoint.type == TuyaBLEDataPointType.DT_ENUM:
                     if self.entity_description.options is not None:
-                        if datapoint.value >= 0 and datapoint.value < len(
-                            self.entity_description.options
+                        if (
+                            isinstance(datapoint.value, int)
+                            and datapoint.value >= 0
+                            and datapoint.value < len(self.entity_description.options)
                         ):
                             self._attr_native_value = self.entity_description.options[
                                 datapoint.value
@@ -560,8 +619,10 @@ class TuyaBLESensor(TuyaBLEEntity, SensorEntity):
                         else:
                             self._attr_native_value = datapoint.value
                     if self._mapping.icons is not None:
-                        if datapoint.value >= 0 and datapoint.value < len(
-                            self._mapping.icons
+                        if (
+                            isinstance(datapoint.value, int)
+                            and datapoint.value >= 0
+                            and datapoint.value < len(self._mapping.icons)
                         ):
                             self._attr_icon = self._mapping.icons[datapoint.value]
                 elif datapoint.type == TuyaBLEDataPointType.DT_VALUE:
