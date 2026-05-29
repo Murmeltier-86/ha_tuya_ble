@@ -1687,6 +1687,19 @@ class TuyaBLEDevice:
                 data = pack(">HBB", dp_seq_num, flags, 0)
                 asyncio.create_task(self._send_response(code, data, seq_num))
 
+            case TuyaBLECode.FUN_RECEIVE_DP_V4:
+                self._parse_datapoints_v3(time.time(), 0, data, 0)
+                asyncio.create_task(
+                    self._send_response(code, bytes(0), seq_num))
+
+            case TuyaBLECode.FUN_RECEIVE_TIME_DP_V4:
+                timestamp: float
+                pos: int
+                timestamp, pos = self._parse_timestamp(data, 0)
+                self._parse_datapoints_v3(timestamp, 0, data, pos)
+                asyncio.create_task(
+                    self._send_response(code, bytes(0), seq_num))
+
         if response_to != 0:
             future = self._input_expected_responses.pop(response_to, None)
             if future:
@@ -1887,9 +1900,15 @@ class TuyaBLEDevice:
             data += pack(">BBH", dp.id, int(dp.type.value), len(value))
             data += value
 
+        code = (
+            TuyaBLECode.FUN_SENDER_DPS_V4
+            if self._protocol_version >= 4
+            else TuyaBLECode.FUN_SENDER_DPS
+        )
         await self._send_packet(
-            TuyaBLECode.FUN_SENDER_DPS,
+            code,
             data,
+            wait_for_response=False,
             force_connect=force_connect,
         )
 
