@@ -1707,7 +1707,18 @@ class TuyaBLEDevice:
                     TuyaBLEDataPointType.DT_ENUM,
                     TuyaBLEDataPointType.DT_VALUE,
                 }
-                if type not in numeric_types or expected_type not in numeric_types:
+                if type in numeric_types and expected_type in numeric_types:
+                    _LOGGER.debug(
+                        "%s: Coercing numeric robot mower datapoint type, "
+                        "id: %s, received: %s, expected: %s, raw: %s",
+                        self.address,
+                        id,
+                        type.name,
+                        expected_type.name,
+                        raw_value.hex(),
+                    )
+                    type = expected_type
+                else:
                     _LOGGER.debug(
                         "%s: Ignoring datapoint update with unexpected type, "
                         "id: %s, received: %s, expected: %s, raw: %s",

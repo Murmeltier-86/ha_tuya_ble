@@ -25,7 +25,6 @@ _LOGGER = logging.getLogger(__name__)
 MOWER_STATUS_OPTIONS = [
     "STANDBY",
     "CHARGING",
-    "Mäht",
     "MOWING",
     "PAUSED",
     "PARK",
@@ -50,7 +49,6 @@ MOWER_COMMAND_OPTIONS = [
 STATUS_TO_ACTIVITY = {
     "STANDBY": LawnMowerActivity.DOCKED,
     "CHARGING": LawnMowerActivity.DOCKED,
-    "Mäht": LawnMowerActivity.MOWING,
     "MOWING": LawnMowerActivity.MOWING,
     "PAUSED": LawnMowerActivity.PAUSED,
     "PARK": LawnMowerActivity.RETURNING,

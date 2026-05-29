@@ -241,7 +241,6 @@
         "state": {
           "STANDBY": "Standby",
           "CHARGING": "Lädt",
-          "Mäht": "Mäht",
           "MOWING": "Mäht",
           "PAUSED": "Pausiert",
           "PARK": "Rückkehr zur Station",

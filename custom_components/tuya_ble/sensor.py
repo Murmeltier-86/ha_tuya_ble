@@ -271,7 +271,6 @@ mapping: dict[str, TuyaBLECategorySensorMapping] = {
                         options=[
                             "STANDBY",
                             "CHARGING",
-                            "Mäht",
                             "MOWING",
                             "PAUSED",
                             "PARK",
