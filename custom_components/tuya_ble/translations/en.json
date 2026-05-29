@@ -36,6 +36,9 @@
       "bluetooth_unlock": {
         "name": "Unlock"
       },
+      "start_mowing": {
+        "name": "Start mowing"
+      },
       "start_fixed_mowing": {
         "name": "Start fixed mowing"
       },

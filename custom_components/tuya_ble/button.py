@@ -151,6 +151,23 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                 TuyaBLEButtonMapping(
                     dp_id=115,
                     description=ButtonEntityDescription(
+                        key="start_mowing",
+                        icon="mdi:mower-on",
+                    ),
+                    dp_type=TuyaBLEDataPointType.DT_ENUM,
+                    press_value="StartMowing",
+                    command_options=[
+                        "PauseWork",
+                        "CancelWork",
+                        "ContinueWork",
+                        "StartMowing",
+                        "StartFixedMowing",
+                        "StartReturnStation",
+                    ],
+                ),
+                TuyaBLEButtonMapping(
+                    dp_id=115,
+                    description=ButtonEntityDescription(
                         key="start_fixed_mowing",
                         icon="mdi:mower-on",
                     ),
@@ -282,6 +299,14 @@ class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
         )
         if datapoint:
             if self._mapping.press_value is not None:
+                _LOGGER.info(
+                    "%s: BLE button command %s -> dp=%s type=%s value=%s",
+                    self._device.address,
+                    self.entity_description.key,
+                    self._mapping.dp_id,
+                    dp_type.name,
+                    value,
+                )
                 self._hass.create_task(datapoint.set_value(value))
             elif getattr(self._product, "lock", False):  # Safely check if 'lock' exists and is True
                 #Lock needs true to activate lock/unlock commands

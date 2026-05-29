@@ -286,7 +286,7 @@ ROBOT_MOWER_DP_TYPES: dict[int, TuyaBLEDataPointType] = {
 }
 
 ROBOT_MOWER_ENUM_OPTIONS: dict[int, list[str]] = {
-    3: ["standby", "random", "smart"],
+    3: ["standby", "random", "smart", "spot", "goto_charge"],
     115: [
         "PauseWork",
         "CancelWork",
@@ -1398,14 +1398,25 @@ class TuyaBLEDevice:
             future = asyncio.Future()
             self._input_expected_responses[seq_num] = future
 
+        noisy_response = response_to > 0 and code in {
+            TuyaBLECode.FUN_RECEIVE_DP,
+            TuyaBLECode.FUN_RECEIVE_DP_V4,
+            TuyaBLECode.FUN_RECEIVE_SIGN_DP,
+            TuyaBLECode.FUN_RECEIVE_TIME_DP,
+            TuyaBLECode.FUN_RECEIVE_TIME_DP_V4,
+            TuyaBLECode.FUN_RECEIVE_SIGN_TIME_DP,
+            TuyaBLECode.FUN_RECEIVE_TIME1_REQ,
+            TuyaBLECode.FUN_RECEIVE_TIME2_REQ,
+        }
         if response_to > 0:
-            _LOGGER.debug(
-                "%s: Sending packet: #%s %s in response to #%s",
-                self.address,
-                seq_num,
-                code.name,
-                response_to,
-            )
+            if not noisy_response:
+                _LOGGER.debug(
+                    "%s: Sending packet: #%s %s in response to #%s",
+                    self.address,
+                    seq_num,
+                    code.name,
+                    response_to,
+                )
         else:
             _LOGGER.debug(
                 "%s: Sending packet: #%s %s",
@@ -1623,12 +1634,15 @@ class TuyaBLEDevice:
                 case TuyaBLEDataPointType.DT_STRING:
                     value = raw_value.decode()
 
+            log_value = (
+                f"<{len(value)} bytes>" if isinstance(value, bytes) else value
+            )
             _LOGGER.debug(
                 "%s: Received datapoint update, id: %s, type: %s: value: %s",
                 self.address,
                 id,
                 type.name,
-                value,
+                log_value,
             )
             self._datapoints._update_from_device(
                 id, timestamp, flags, type, value)
@@ -1757,11 +1771,12 @@ class TuyaBLEDevice:
                 asyncio.create_task(self._send_response(code, data, seq_num))
 
             case TuyaBLECode.FUN_RECEIVE_DP_V4:
-                _LOGGER.debug(
-                    "%s: Received raw DP_V4 payload: %s",
-                    self.address,
-                    data.hex(),
-                )
+                if not self._is_robot_mower():
+                    _LOGGER.debug(
+                        "%s: Received raw DP_V4 payload: %s",
+                        self.address,
+                        data.hex(),
+                    )
                 parsed = 0
                 offsets = (
                     (len(TUYA_BLE_V4_DP_PREFIX),)
@@ -1881,8 +1896,6 @@ class TuyaBLEDevice:
 
     def _notification_handler(self, _sender: int, data: bytearray) -> None:
         """Handle notification responses."""
-        _LOGGER.debug("%s: Packet received: %s", self.address, data.hex())
-
         pos: int = 0
         packet_num: int
 
@@ -2004,15 +2017,20 @@ class TuyaBLEDevice:
         )
         if code == TuyaBLECode.FUN_SENDER_DPS_V4:
             data = bytearray(TUYA_BLE_V4_DP_PREFIX) + data
-        _LOGGER.debug(
-            "%s: Sending datapoints with %s; protocol=%s product_id=%s "
-            "category=%s robot_mower=%s payload=%s",
+        _LOGGER.info(
+            "%s: BLE datapoint write via %s: dp_ids=%s protocol=%s "
+            "product_id=%s category=%s robot_mower=%s",
             self.address,
             code.name,
+            datapoint_ids,
             self._protocol_version,
             self.product_id,
             self.category,
             self._is_robot_mower(),
+        )
+        _LOGGER.debug(
+            "%s: BLE datapoint write payload: %s",
+            self.address,
             data.hex(),
         )
         await self._send_packet(
