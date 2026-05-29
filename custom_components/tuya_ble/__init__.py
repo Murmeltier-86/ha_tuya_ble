@@ -98,7 +98,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    hass.async_create_task(device.update_from_cloud())
     hass.async_create_task(coordinator.async_request_refresh())
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 

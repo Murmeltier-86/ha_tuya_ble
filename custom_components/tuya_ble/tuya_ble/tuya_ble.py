@@ -286,7 +286,7 @@ ROBOT_MOWER_DP_TYPES: dict[int, TuyaBLEDataPointType] = {
 }
 
 ROBOT_MOWER_ENUM_OPTIONS: dict[int, list[str]] = {
-    3: ["standby", "random", "smart", "spot", "goto_charge"],
+    3: ["standby", "random", "smart"],
     115: [
         "PauseWork",
         "CancelWork",
@@ -422,19 +422,28 @@ class TuyaBLEDevice:
         )
 
     async def update(self) -> None:
-        _LOGGER.debug("%s: Updating", self.address)
-        cloud_updated = await self.update_from_cloud()
+        _LOGGER.debug("%s: Updating over local BLE", self.address)
         if self._is_robot_mower():
             _LOGGER.debug(
-                "%s: Skipping BLE status poll for robot mower; cloud_updated=%s",
+                "%s: polling robot mower datapoints over local BLE only",
                 self.address,
-                cloud_updated,
+            )
+            await self._send_packet(
+                TuyaBLECode.FUN_SENDER_DEVICE_STATUS,
+                bytes(),
+                wait_for_response=False,
             )
             return
         await self._send_packet(TuyaBLECode.FUN_SENDER_DEVICE_STATUS, bytes())
 
     async def update_from_cloud(self) -> bool:
         """Fetch latest datapoints from Tuya cloud as a fallback for BLE-only reads."""
+        if self._is_robot_mower():
+            _LOGGER.debug(
+                "%s: skipping Tuya cloud status update for robot mower; using BLE only",
+                self.address,
+            )
+            return False
         if not self._device_info or not self._device_manager:
             return False
 
@@ -1075,7 +1084,7 @@ class TuyaBLEDevice:
                                 client, "no Tuya notify characteristic"
                             )
                             _LOGGER.debug(
-                                "%s: No Tuya notify characteristic found; using cloud fallback only",
+                                "%s: No Tuya notify characteristic found; local BLE unavailable",
                                 self.address,
                             )
                             return
@@ -1085,7 +1094,7 @@ class TuyaBLEDevice:
                                 client, "no Tuya write characteristic"
                             )
                             _LOGGER.debug(
-                                "%s: No Tuya write characteristic found; using cloud fallback only",
+                                "%s: No Tuya write characteristic found; local BLE unavailable",
                                 self.address,
                             )
                             return

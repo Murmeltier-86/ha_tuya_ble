@@ -191,7 +191,7 @@ mapping: dict[str, TuyaBLECategorySelectMapping] = {
                     description=SelectEntityDescription(
                         key="mode",
                         icon="mdi:state-machine",
-                        options=["standby", "random", "smart", "spot", "goto_charge"],
+                        options=["standby", "random", "smart"],
                     ),
                 ),
                 TuyaBLESelectMapping(

@@ -64,6 +64,7 @@ STATUS_TO_ACTIVITY = {
 @dataclass
 class TuyaBLELawnMowerMapping:
     status_dp_id: int
+    switch_dp_id: int
     command_dp_id: int
     status_options: list[str]
     command_options: list[str]
@@ -79,6 +80,7 @@ mapping: dict[str, TuyaBLECategoryLawnMowerMapping] = {
         products={
             "7yr5iwga": TuyaBLELawnMowerMapping(
                 status_dp_id=101,
+                switch_dp_id=2,
                 command_dp_id=115,
                 status_options=MOWER_STATUS_OPTIONS,
                 command_options=MOWER_COMMAND_OPTIONS,
@@ -149,16 +151,25 @@ class TuyaBLELawnMower(TuyaBLEEntity, LawnMowerEntity):
         )
         self._hass.create_task(datapoint.set_value(value))
 
+    def _set_switch_go(self, value: bool) -> None:
+        """Set the Tuya switch_go function datapoint."""
+        datapoint = self._device.datapoints.get_or_create(
+            self._mapping.switch_dp_id,
+            TuyaBLEDataPointType.DT_BOOL,
+            value,
+        )
+        self._hass.create_task(datapoint.set_value(value))
+
     def start_mowing(self) -> None:
-        """Start mowing."""
-        self._send_mower_command("StartMowing")
+        """Start mowing via the Tuya switch_go BLE function."""
+        self._set_switch_go(True)
 
     def pause(self) -> None:
-        """Pause mowing."""
-        self._send_mower_command("PauseWork")
+        """Pause mowing via the Tuya switch_go BLE function."""
+        self._set_switch_go(False)
 
     def dock(self) -> None:
-        """Return to dock."""
+        """Return to dock via the Tuya mower command datapoint."""
         self._send_mower_command("StartReturnStation")
 
 
