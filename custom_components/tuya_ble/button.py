@@ -348,7 +348,7 @@ class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
                     await companion.set_value(dp_value)
             await datapoint.set_value(value)
         finally:
-            await self._device.datapoints.end_update()
+            await self._device.datapoints.end_update(force_connect=True)
 
     @property
     def available(self) -> bool:

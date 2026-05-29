@@ -207,11 +207,14 @@ class TuyaBLEDataPoints:
     def begin_update(self) -> None:
         self._update_started += 1
 
-    async def end_update(self) -> None:
+    async def end_update(self, force_connect: bool = False) -> None:
         if self._update_started > 0:
             self._update_started -= 1
             if self._update_started == 0 and len(self._updated_datapoints) > 0:
-                await self._owner._send_datapoints(self._updated_datapoints)
+                await self._owner._send_datapoints(
+                    self._updated_datapoints,
+                    force_connect=force_connect,
+                )
                 self._updated_datapoints = []
 
     def _update_from_device(
