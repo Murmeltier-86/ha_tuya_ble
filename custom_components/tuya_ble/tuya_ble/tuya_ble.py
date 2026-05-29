@@ -2100,20 +2100,10 @@ class TuyaBLEDevice:
             data += pack(">BBH", dp.id, int(dp.type.value), len(value))
             data += value
 
-        # Tuya's command datapoint payload is the plain DP unit
-        # (dp_id, type, length, value).  This mower reports status using the
-        # V4 receive opcode/prefix, but field logs show locally sent V4 command
-        # payloads are acknowledged by the BLE layer and then ignored by the
-        # mower MCU.  Keep V4 parsing for inbound status frames, but send mower
-        # control/config writes through the documented legacy DPS command path.
         code = (
-            TuyaBLECode.FUN_SENDER_DPS
-            if self._is_robot_mower()
-            else (
-                TuyaBLECode.FUN_SENDER_DPS_V4
-                if self._protocol_version >= 4
-                else TuyaBLECode.FUN_SENDER_DPS
-            )
+            TuyaBLECode.FUN_SENDER_DPS_V4
+            if self._protocol_version >= 4 or self._is_robot_mower()
+            else TuyaBLECode.FUN_SENDER_DPS
         )
         if code == TuyaBLECode.FUN_SENDER_DPS_V4:
             data = bytearray(TUYA_BLE_V4_DP_PREFIX) + data
@@ -2145,9 +2135,30 @@ class TuyaBLEDevice:
     async def _send_datapoints(
         self, datapoint_ids: list[int], force_connect: bool = False
     ) -> None:
-        """Send new values of datapoints to the device locally over BLE."""
+        """Send new values of datapoints to the device."""
+        if self._is_robot_mower():
+            _LOGGER.debug(
+                "%s: trying Tuya cloud command bridge before local BLE write: %s",
+                self.address,
+                datapoint_ids,
+            )
+            if await self._send_datapoints_cloud(datapoint_ids):
+                _LOGGER.info(
+                    "%s: sent robot mower datapoints through Tuya cloud bridge: %s",
+                    self.address,
+                    datapoint_ids,
+                )
+                self._user_command_in_progress_until = monotonic() + 30
+                return
+            _LOGGER.info(
+                "%s: Tuya cloud command bridge did not accept datapoints %s; "
+                "falling back to local BLE",
+                self.address,
+                datapoint_ids,
+            )
+
         _LOGGER.debug(
-            "%s: sending datapoints locally over BLE only: %s",
+            "%s: sending datapoints locally over BLE: %s",
             self.address,
             datapoint_ids,
         )
