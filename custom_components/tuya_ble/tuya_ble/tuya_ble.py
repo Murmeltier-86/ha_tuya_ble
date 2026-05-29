@@ -1372,6 +1372,11 @@ class TuyaBLEDevice:
     ) -> None:
         """Send packet to device and optional read response."""
         if self._expected_disconnect:
+            _LOGGER.debug(
+                "%s: not sending %s because device disconnected during connect",
+                self.address,
+                code.name,
+            )
             return
         if self._notifications_unsupported:
             if force_connect:
@@ -1381,21 +1386,61 @@ class TuyaBLEDevice:
                 )
                 self._notifications_unsupported = False
             else:
+                _LOGGER.info(
+                    "%s: not sending %s because local BLE notifications are unsupported",
+                    self.address,
+                    code.name,
+                )
                 return
         if not force_connect and monotonic() < self._notify_retry_block_until:
+            _LOGGER.info(
+                "%s: not sending %s because BLE notify retry backoff is active",
+                self.address,
+                code.name,
+            )
             return
         await self._ensure_connected(force_connect)
         if self._expected_disconnect:
+            _LOGGER.debug(
+                "%s: not sending %s because device disconnected during connect",
+                self.address,
+                code.name,
+            )
             return
         if self._notifications_unsupported:
             if force_connect:
+                _LOGGER.info(
+                    "%s: local BLE send %s failed because notifications became unsupported",
+                    self.address,
+                    code.name,
+                )
                 raise BleakNotFoundError()
+            _LOGGER.info(
+                "%s: not sending %s because local BLE notifications are unsupported after connect",
+                self.address,
+                code.name,
+            )
             return
         if not force_connect and monotonic() < self._notify_retry_block_until:
+            _LOGGER.info(
+                "%s: not sending %s because BLE notify retry backoff is active after connect",
+                self.address,
+                code.name,
+            )
             return
         if not (self._client and self._client.is_connected and self._is_paired):
             if force_connect:
+                _LOGGER.info(
+                    "%s: local BLE send %s failed because connection/pairing is not ready",
+                    self.address,
+                    code.name,
+                )
                 raise BleakNotFoundError()
+            _LOGGER.info(
+                "%s: not sending %s because connection/pairing is not ready",
+                self.address,
+                code.name,
+            )
             return
         await self._send_packet_while_connected(code, data, 0, wait_for_response)
 

@@ -35,6 +35,7 @@ class TuyaBLEButtonMapping:
     is_available: TuyaBLEButtonIsAvailable = None
     press_value: bool | int | str | None = None
     command_options: list[str] | None = None
+    extra_datapoints: list[tuple[int, TuyaBLEDataPointType, bytes | bool | int | str]] | None = None
 
 
 def is_fingerbot_in_push_mode(self: TuyaBLEButton, product: TuyaBLEProductInfo) -> bool:
@@ -163,6 +164,9 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         "StartMowing",
                         "StartFixedMowing",
                         "StartReturnStation",
+                    ],
+                    extra_datapoints=[
+                        (2, TuyaBLEDataPointType.DT_BOOL, True),
                     ],
                 ),
                 TuyaBLEButtonMapping(
@@ -307,12 +311,43 @@ class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
                     dp_type.name,
                     value,
                 )
-                self._hass.create_task(datapoint.set_value(value))
+                self._hass.create_task(
+                    self._async_press_datapoints(datapoint, value)
+                )
             elif getattr(self._product, "lock", False):  # Safely check if 'lock' exists and is True
                 #Lock needs true to activate lock/unlock commands
                 self._hass.create_task(datapoint.set_value(True))
             else:
                 self._hass.create_task(datapoint.set_value(not bool(datapoint.value)))
+
+
+    async def _async_press_datapoints(
+        self,
+        datapoint,
+        value: bytes | bool | int | str,
+    ) -> None:
+        """Send the button datapoint and optional companion datapoints as one BLE write."""
+        self._device.datapoints.begin_update()
+        try:
+            await datapoint.set_value(value)
+            if self._mapping.extra_datapoints:
+                for dp_id, dp_type, dp_value in self._mapping.extra_datapoints:
+                    _LOGGER.info(
+                        "%s: BLE button companion datapoint %s -> dp=%s type=%s value=%s",
+                        self._device.address,
+                        self.entity_description.key,
+                        dp_id,
+                        dp_type.name,
+                        dp_value,
+                    )
+                    companion = self._device.datapoints.get_or_create(
+                        dp_id,
+                        dp_type,
+                        dp_value,
+                    )
+                    await companion.set_value(dp_value)
+        finally:
+            await self._device.datapoints.end_update()
 
     @property
     def available(self) -> bool:
