@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import asyncio
 import logging
 
 from homeassistant.components.lawn_mower import (
@@ -94,9 +95,16 @@ mapping: dict[str, TuyaBLECategoryLawnMowerMapping] = {
 
 def get_mapping_by_device(device: TuyaBLEDevice) -> TuyaBLELawnMowerMapping | None:
     category = mapping.get(device.category)
+    if category is None and device.is_robot_mower:
+        category = mapping.get("gcj")
     if category is None:
         return None
-    return category.products.get(device.product_id)
+    product_mapping = category.products.get(device.product_id)
+    if product_mapping is not None:
+        return product_mapping
+    if device.is_robot_mower:
+        return category.products.get("7yr5iwga")
+    return None
 
 
 class TuyaBLELawnMower(TuyaBLEEntity, LawnMowerEntity):
@@ -142,18 +150,40 @@ class TuyaBLELawnMower(TuyaBLEEntity, LawnMowerEntity):
 
     def _send_mower_command(self, command: str) -> None:
         """Send a mower command enum."""
-        if command not in self._mapping.command_options:
-            _LOGGER.debug("%s: unknown mower command %s", self._device.address, command)
+        value = self._mower_command_value(command)
+        if value is None:
             return
-        # Local BLE command values are the zero-based enum indexes reported
-        # back by the mower on datapoint 115.
-        value = self._mapping.command_options.index(command)
         datapoint = self._device.datapoints.get_or_create(
             self._mapping.command_dp_id,
             TuyaBLEDataPointType.DT_ENUM,
             value,
         )
         self._hass.create_task(datapoint.set_value(value))
+
+    def _mower_command_value(self, command: str) -> int | None:
+        """Return the zero-based enum value for a mower command."""
+        if command not in self._mapping.command_options:
+            _LOGGER.debug("%s: unknown mower command %s", self._device.address, command)
+            return None
+        # Local BLE command values are the zero-based enum indexes reported
+        # back by the mower on datapoint 115.
+        return self._mapping.command_options.index(command)
+
+    async def _async_send_mower_command_sequence(self, commands: list[str]) -> None:
+        """Send mower commands with one second between each command."""
+        last_command_index = len(commands) - 1
+        for index, command in enumerate(commands):
+            value = self._mower_command_value(command)
+            if value is None:
+                return
+            datapoint = self._device.datapoints.get_or_create(
+                self._mapping.command_dp_id,
+                TuyaBLEDataPointType.DT_ENUM,
+                value,
+            )
+            await datapoint.set_value(value)
+            if index < last_command_index:
+                await asyncio.sleep(1)
 
     def _set_switch_go(self, value: bool) -> None:
         """Set the Tuya switch_go function datapoint."""
@@ -195,7 +225,11 @@ class TuyaBLELawnMower(TuyaBLEEntity, LawnMowerEntity):
 
     def dock(self) -> None:
         """Return to dock via the Tuya mower command datapoint."""
-        self._send_mower_command("StartReturnStation")
+        self._hass.create_task(
+            self._async_send_mower_command_sequence(
+                ["PauseWork", "CancelWork", "StartReturnStation"]
+            )
+        )
 
 
 async def async_setup_entry(

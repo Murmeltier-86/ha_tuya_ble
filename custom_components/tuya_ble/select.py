@@ -273,10 +273,14 @@ def get_mapping_by_device(
     device: TuyaBLEDevice
 ) -> list[TuyaBLECategorySelectMapping]:
     category = mapping.get(device.category)
+    if category is None and device.is_robot_mower:
+        category = mapping.get("gcj")
     if category is not None and category.products is not None:
         product_mapping = category.products.get(device.product_id)
         if product_mapping is not None:
             return product_mapping
+        if device.is_robot_mower and "7yr5iwga" in category.products:
+            return category.products["7yr5iwga"]
         if category.mapping is not None:
             return category.mapping
         else:

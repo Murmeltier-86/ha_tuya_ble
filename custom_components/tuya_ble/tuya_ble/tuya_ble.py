@@ -415,7 +415,7 @@ class TuyaBLEDevice:
             or "mower" in product_name
             or "mähroboter" in product_name
             or "maehroboter" in product_name
-            or product_model == "kc8b105"
+            or product_model in {"kc8b105", "fjjhfw"}
         )
 
     @property
@@ -1703,17 +1703,33 @@ class TuyaBLEDevice:
                 else None
             )
             if expected_type is not None and type != expected_type:
-                _LOGGER.debug(
-                    "%s: Ignoring datapoint update with unexpected type, "
-                    "id: %s, received: %s, expected: %s, raw: %s",
-                    self.address,
-                    id,
-                    type.name,
-                    expected_type.name,
-                    raw_value.hex(),
-                )
-                pos = next_pos
-                continue
+                numeric_types = {
+                    TuyaBLEDataPointType.DT_ENUM,
+                    TuyaBLEDataPointType.DT_VALUE,
+                }
+                if type in numeric_types and expected_type in numeric_types:
+                    _LOGGER.debug(
+                        "%s: Coercing numeric robot mower datapoint type, "
+                        "id: %s, received: %s, expected: %s, raw: %s",
+                        self.address,
+                        id,
+                        type.name,
+                        expected_type.name,
+                        raw_value.hex(),
+                    )
+                    type = expected_type
+                else:
+                    _LOGGER.debug(
+                        "%s: Ignoring datapoint update with unexpected type, "
+                        "id: %s, received: %s, expected: %s, raw: %s",
+                        self.address,
+                        id,
+                        type.name,
+                        expected_type.name,
+                        raw_value.hex(),
+                    )
+                    pos = next_pos
+                    continue
 
             match type:
                 case (TuyaBLEDataPointType.DT_RAW | TuyaBLEDataPointType.DT_BITMAP):

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import asyncio
 import logging
 from typing import Callable
 
@@ -36,6 +37,7 @@ class TuyaBLEButtonMapping:
     press_value: bool | int | str | None = None
     command_options: list[str] | None = None
     extra_datapoints: list[tuple[int, TuyaBLEDataPointType, bytes | bool | int | str]] | None = None
+    command_sequence: list[tuple[bytes | bool | int | str, float]] | None = None
 
 
 def is_fingerbot_in_push_mode(self: TuyaBLEButton, product: TuyaBLEProductInfo) -> bool:
@@ -202,6 +204,11 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                     ),
                     dp_type=TuyaBLEDataPointType.DT_ENUM,
                     press_value=5,
+                    command_sequence=[
+                        (0, 1.0),
+                        (1, 1.0),
+                        (5, 0.0),
+                    ],
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=107,
@@ -238,10 +245,14 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
 
 def get_mapping_by_device(device: TuyaBLEDevice) -> list[TuyaBLECategoryButtonMapping]:
     category = mapping.get(device.category)
+    if category is None and device.is_robot_mower:
+        category = mapping.get("gcj")
     if category is not None and category.products is not None:
         product_mapping = category.products.get(device.product_id)
         if product_mapping is not None:
             return product_mapping
+        if device.is_robot_mower and "7yr5iwga" in category.products:
+            return category.products["7yr5iwga"]
         if category.mapping is not None:
             return category.mapping
         else:
@@ -285,7 +296,9 @@ class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
             value,
         )
         if datapoint:
-            if self._mapping.press_value is not None:
+            if self._mapping.command_sequence is not None:
+                self._hass.create_task(self._async_press_sequence(dp_type))
+            elif self._mapping.press_value is not None:
                 _LOGGER.info(
                     "%s: BLE button command %s -> dp=%s type=%s value=%s",
                     self._device.address,
@@ -303,6 +316,28 @@ class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
             else:
                 self._hass.create_task(datapoint.set_value(not bool(datapoint.value)))
 
+    async def _async_press_sequence(self, dp_type: TuyaBLEDataPointType) -> None:
+        """Send a sequence of button values with delays between writes."""
+        if self._mapping.command_sequence is None:
+            return
+
+        for value, delay_after in self._mapping.command_sequence:
+            datapoint = self._device.datapoints.get_or_create(
+                self._mapping.dp_id,
+                dp_type,
+                value,
+            )
+            _LOGGER.info(
+                "%s: BLE button sequence %s -> dp=%s type=%s value=%s",
+                self._device.address,
+                self.entity_description.key,
+                self._mapping.dp_id,
+                dp_type.name,
+                value,
+            )
+            await datapoint.set_value(value)
+            if delay_after > 0:
+                await asyncio.sleep(delay_after)
 
     async def _async_press_datapoints(
         self,
