@@ -58,6 +58,7 @@ CLIENT_CHARACTERISTIC_CONFIGURATION_UUID = "00002902-0000-1000-8000-00805f9b34fb
 GENERIC_ATTRIBUTE_SERVICE_UUID = "00001801-0000-1000-8000-00805f9b34fb"
 SERVICE_CHANGED_CHARACTERISTIC_UUID = "00002a05-0000-1000-8000-00805f9b34fb"
 TUYA_VENDOR_UUID_SUFFIX = "-1001-8001-00805f9b07d0"
+TUYA_BLE_V4_DP_PREFIX = b"\x00\xf0\x00\x00\x00\x80\x00"
 
 @dataclass
 class TuyaBLEEntityDescription:
@@ -260,7 +261,7 @@ ROBOT_MOWER_CLOUD_STATUS: dict[str, tuple[int, TuyaBLEDataPointType]] = {
     "status": (5, TuyaBLEDataPointType.DT_ENUM),
     "battery_percentage": (13, TuyaBLEDataPointType.DT_VALUE),
     "MachineStatus": (101, TuyaBLEDataPointType.DT_ENUM),
-    "MachineError": (102, TuyaBLEDataPointType.DT_VALUE),
+    "MachineError": (102, TuyaBLEDataPointType.DT_BITMAP),
     "MachineWarning": (103, TuyaBLEDataPointType.DT_ENUM),
     "MachineRainMode": (104, TuyaBLEDataPointType.DT_BOOL),
     "MachineWorktime": (105, TuyaBLEDataPointType.DT_VALUE),
@@ -268,16 +269,16 @@ ROBOT_MOWER_CLOUD_STATUS: dict[str, tuple[int, TuyaBLEDataPointType]] = {
     "ClearAppointment": (107, TuyaBLEDataPointType.DT_BOOL),
     "QueryAppointment": (108, TuyaBLEDataPointType.DT_BOOL),
     "QueryPartition": (109, TuyaBLEDataPointType.DT_BOOL),
-    "MachineAppointment": (110, TuyaBLEDataPointType.DT_STRING),
-    "MachineErrorLog": (111, TuyaBLEDataPointType.DT_STRING),
-    "MachineWorkLog": (112, TuyaBLEDataPointType.DT_STRING),
-    "MachinePartition": (113, TuyaBLEDataPointType.DT_STRING),
+    "MachineAppointment": (110, TuyaBLEDataPointType.DT_RAW),
+    "MachineErrorLog": (111, TuyaBLEDataPointType.DT_RAW),
+    "MachineWorkLog": (112, TuyaBLEDataPointType.DT_RAW),
+    "MachinePartition": (113, TuyaBLEDataPointType.DT_RAW),
     "boolreserved01": (114, TuyaBLEDataPointType.DT_BOOL),
     "MachineControlCmd": (115, TuyaBLEDataPointType.DT_ENUM),
     "MachineCover": (116, TuyaBLEDataPointType.DT_BOOL),
     "boolreserved03": (118, TuyaBLEDataPointType.DT_BOOL),
     "strreserved01": (134, TuyaBLEDataPointType.DT_STRING),
-    "rawreserved01": (139, TuyaBLEDataPointType.DT_STRING),
+    "rawreserved01": (139, TuyaBLEDataPointType.DT_RAW),
 }
 
 ROBOT_MOWER_ENUM_OPTIONS: dict[int, list[str]] = {
@@ -1714,29 +1715,25 @@ class TuyaBLEDevice:
                     self.address,
                     data.hex(),
                 )
-                try:
-                    parsed = self._parse_datapoints_v3(time.time(), 0, data, 0)
-                except TuyaBLEDataFormatError:
-                    parsed = 0
-                except TuyaBLEDataLengthError:
-                    parsed = 0
-                if parsed == 0:
-                    # Some v4 payloads include an application sequence/status
-                    # prefix before the normal DP list. Try common prefix sizes
-                    # so mower state reports are not silently ignored.
-                    for offset in (1, 2, 3, 4):
-                        if len(data) - offset < 4:
-                            continue
-                        try:
-                            parsed = self._parse_datapoints_v3(
-                                time.time(), 0, data, offset
-                            )
-                        except TuyaBLEDataFormatError:
-                            continue
-                        except TuyaBLEDataLengthError:
-                            continue
-                        if parsed:
-                            break
+                parsed = 0
+                offsets = (
+                    (len(TUYA_BLE_V4_DP_PREFIX),)
+                    if data.startswith(TUYA_BLE_V4_DP_PREFIX)
+                    else (0, 1, 2, 3, 4, len(TUYA_BLE_V4_DP_PREFIX))
+                )
+                for offset in offsets:
+                    if len(data) - offset < 4:
+                        continue
+                    try:
+                        parsed = self._parse_datapoints_v3(
+                            time.time(), 0, data, offset
+                        )
+                    except TuyaBLEDataFormatError:
+                        continue
+                    except TuyaBLEDataLengthError:
+                        continue
+                    if parsed:
+                        break
                 asyncio.create_task(
                     self._send_response(code, bytes(0), seq_num))
 
@@ -1958,6 +1955,8 @@ class TuyaBLEDevice:
             if self._protocol_version >= 4
             else TuyaBLECode.FUN_SENDER_DPS
         )
+        if code == TuyaBLECode.FUN_SENDER_DPS_V4:
+            data = bytearray(TUYA_BLE_V4_DP_PREFIX) + data
         await self._send_packet(
             code,
             data,
