@@ -65,6 +65,7 @@ STATUS_TO_ACTIVITY = {
 class TuyaBLELawnMowerMapping:
     status_dp_id: int
     switch_dp_id: int
+    mode_dp_id: int
     command_dp_id: int
     status_options: list[str]
     command_options: list[str]
@@ -81,6 +82,7 @@ mapping: dict[str, TuyaBLECategoryLawnMowerMapping] = {
             "7yr5iwga": TuyaBLELawnMowerMapping(
                 status_dp_id=101,
                 switch_dp_id=2,
+                mode_dp_id=3,
                 command_dp_id=115,
                 status_options=MOWER_STATUS_OPTIONS,
                 command_options=MOWER_COMMAND_OPTIONS,
@@ -160,9 +162,28 @@ class TuyaBLELawnMower(TuyaBLEEntity, LawnMowerEntity):
         )
         self._hass.create_task(datapoint.set_value(value))
 
+    async def _async_start_mowing(self) -> None:
+        """Start mowing by selecting smart mode and enabling switch_go over BLE."""
+        self._device.datapoints.begin_update()
+        try:
+            mode = self._device.datapoints.get_or_create(
+                self._mapping.mode_dp_id,
+                TuyaBLEDataPointType.DT_ENUM,
+                2,
+            )
+            switch_go = self._device.datapoints.get_or_create(
+                self._mapping.switch_dp_id,
+                TuyaBLEDataPointType.DT_BOOL,
+                True,
+            )
+            await mode.set_value(2)
+            await switch_go.set_value(True)
+        finally:
+            await self._device.datapoints.end_update(force_connect=True)
+
     def start_mowing(self) -> None:
-        """Start mowing via the Tuya switch_go BLE function."""
-        self._set_switch_go(True)
+        """Start mowing via Tuya mode=smart and switch_go BLE functions."""
+        self._hass.create_task(self._async_start_mowing())
 
     def pause(self) -> None:
         """Pause mowing via the Tuya switch_go BLE function."""

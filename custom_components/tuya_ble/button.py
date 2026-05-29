@@ -150,24 +150,15 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
         products={
             "7yr5iwga": [  # Robot Mower PMRC 250 A1 (BT)
                 TuyaBLEButtonMapping(
-                    dp_id=115,
+                    dp_id=2,
                     description=ButtonEntityDescription(
                         key="start_mowing",
                         icon="mdi:mower-on",
                     ),
-                    dp_type=TuyaBLEDataPointType.DT_ENUM,
-                    press_value="StartMowing",
-                    command_options=[
-                        "PauseWork",
-                        "CancelWork",
-                        "ContinueWork",
-                        "StartMowing",
-                        "StartFixedMowing",
-                        "StartReturnStation",
-                    ],
+                    dp_type=TuyaBLEDataPointType.DT_BOOL,
+                    press_value=True,
                     extra_datapoints=[
                         (3, TuyaBLEDataPointType.DT_ENUM, 2),
-                        (2, TuyaBLEDataPointType.DT_BOOL, True),
                     ],
                 ),
                 TuyaBLEButtonMapping(
