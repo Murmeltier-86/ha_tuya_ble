@@ -324,6 +324,8 @@ class TuyaBLEDevice:
         self._notify_failures = 0
         self._next_reconnect_ts = 0.0
         self._notify_retry_block_until = 0.0
+        self._last_ble_status_poll = 0.0
+        self._user_command_in_progress_until = 0.0
         self._connected_callbacks: list[Callable[[], None]] = []
         self._callbacks: list[Callable[[list[TuyaBLEDataPoint]], None]] = []
         self._disconnected_callbacks: list[Callable[[], None]] = []
@@ -411,6 +413,16 @@ class TuyaBLEDevice:
             or product_model == "kc8b105"
         )
 
+    @property
+    def is_robot_mower(self) -> bool:
+        """Return true for known Tuya robot mower devices."""
+        return self._is_robot_mower()
+
+    @property
+    def is_busy(self) -> bool:
+        """Return true if a BLE send operation is currently queued or running."""
+        return self._operation_lock.locked()
+
     async def pair(self) -> None:
         """
         _LOGGER.debug("%s: Sending pairing request: %s",
@@ -424,8 +436,23 @@ class TuyaBLEDevice:
     async def update(self) -> None:
         _LOGGER.debug("%s: Updating over local BLE", self.address)
         if self._is_robot_mower():
-            _LOGGER.debug(
-                "%s: polling robot mower datapoints over local BLE only",
+            now = monotonic()
+            if self._operation_lock.locked() or now < self._user_command_in_progress_until:
+                _LOGGER.debug(
+                    "%s: skipping robot mower BLE status poll while command/write is active",
+                    self.address,
+                )
+                return
+            if self._last_ble_status_poll and now - self._last_ble_status_poll < 600:
+                _LOGGER.debug(
+                    "%s: skipping robot mower BLE status poll; last poll %.0fs ago",
+                    self.address,
+                    now - self._last_ble_status_poll,
+                )
+                return
+            self._last_ble_status_poll = now
+            _LOGGER.info(
+                "%s: BLE status poll for robot mower via FUN_SENDER_DEVICE_STATUS",
                 self.address,
             )
             await self._send_packet(
@@ -2033,6 +2060,8 @@ class TuyaBLEDevice:
             self.address,
             data.hex(),
         )
+        if self._is_robot_mower():
+            self._user_command_in_progress_until = monotonic() + 30
         await self._send_packet(
             code,
             data,

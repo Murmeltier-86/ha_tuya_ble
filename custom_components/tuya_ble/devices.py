@@ -249,7 +249,9 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=30),
+            update_interval=(
+                timedelta(minutes=10) if device.is_robot_mower else timedelta(seconds=30)
+            ),
         )
         self._device = device
         self._disconnected: bool = True
@@ -261,6 +263,12 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
     async def _async_update_data(self) -> None:
         """Poll latest datapoints from the device."""
         try:
+            if self._device.is_robot_mower and self._device.is_busy:
+                _LOGGER.debug(
+                    "%s: skipping coordinator poll while BLE operation is active",
+                    self._device.address,
+                )
+                return None
             await self._device.update()
             if self._disconnected:
                 _LOGGER.debug("%s: update succeeded; marking coordinator connected", self._device.address)
