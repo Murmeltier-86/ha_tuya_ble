@@ -95,12 +95,14 @@ mapping: dict[str, TuyaBLECategoryLawnMowerMapping] = {
 
 def get_mapping_by_device(device: TuyaBLEDevice) -> TuyaBLELawnMowerMapping | None:
     category = mapping.get(device.category)
+    if category is None and device.is_robot_mower:
+        category = mapping.get("gcj")
     if category is None:
         return None
     product_mapping = category.products.get(device.product_id)
     if product_mapping is not None:
         return product_mapping
-    if device.category == "gcj":
+    if device.is_robot_mower:
         return category.products.get("7yr5iwga")
     return None
 

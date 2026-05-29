@@ -415,7 +415,7 @@ class TuyaBLEDevice:
             or "mower" in product_name
             or "mähroboter" in product_name
             or "maehroboter" in product_name
-            or product_model == "kc8b105"
+            or product_model in {"kc8b105", "fjjhfw"}
         )
 
     @property
