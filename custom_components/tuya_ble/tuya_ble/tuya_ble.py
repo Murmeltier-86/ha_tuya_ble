@@ -994,6 +994,31 @@ class TuyaBLEDevice:
                         ):
                             write_char = char
 
+        if (
+            self._is_robot_mower()
+            and notify_char is not None
+            and write_char is not None
+            and notify_char.uuid != write_char.uuid
+            and "write" in set(notify_char.properties or [])
+        ):
+            # The KC8B105/PMRC mower exposes a combined notify+write
+            # characteristic and a separate write-without-response
+            # characteristic.  Status frames arrive from the combined
+            # characteristic, but field logs show commands sent to the
+            # write-without-response characteristic are ACKed by the BLE
+            # protocol while the mower ignores every command/config change.
+            # Prefer the notify+write characteristic for mower commands so
+            # writes are sent with response on the same pipe the mower uses
+            # for its V4 datapoint exchange.
+            _LOGGER.info(
+                "%s: Robot mower using notify/write characteristic %s "
+                "for command writes instead of write-only characteristic %s",
+                self.address,
+                notify_char.uuid,
+                write_char.uuid,
+            )
+            write_char = notify_char
+
         if notify_char is not None:
             self._notify_char = notify_char.uuid
         else:
