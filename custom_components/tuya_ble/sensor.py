@@ -245,27 +245,9 @@ mapping: dict[str, TuyaBLECategorySensorMapping] = {
             "7yr5iwga": [  # Robot Mower PMRC 250 A1 (BT)
                 TuyaBLEBatteryMapping(dp_id=13),
                 TuyaBLESensorMapping(
-                    dp_id=5,
-                    description=SensorEntityDescription(
-                        key="status",
-                        icon="mdi:robot-mower",
-                        device_class=SensorDeviceClass.ENUM,
-                        options=[
-                            "standby",
-                            "paused",
-                            "sleep",
-                            "smart_clean",
-                            "spot_clean",
-                            "goto_charge",
-                            "charging",
-                            "charge_done",
-                        ],
-                    ),
-                ),
-                TuyaBLESensorMapping(
                     dp_id=101,
                     description=SensorEntityDescription(
-                        key="machine_status",
+                        key="status",
                         icon="mdi:robot-mower-outline",
                         device_class=SensorDeviceClass.ENUM,
                         options=[
@@ -300,7 +282,7 @@ mapping: dict[str, TuyaBLECategorySensorMapping] = {
                             "CLOSE_TOPCOVER",
                             "MOWER_IN_STATION",
                             "MOWER_OUT_STATION",
-                            "PLACE_INSIDE",
+                            "PLACE_INSIDE_STATION",
                             "FIXED_END",
                             "CHARGING_DISCONNECT",
                             "CHARGING_PAUSE",
@@ -318,8 +300,6 @@ mapping: dict[str, TuyaBLECategorySensorMapping] = {
                             "MOWER_UI_LOCKED",
                             "DISCHARGE_ERROR",
                             "CHARGE_TEMP_ERROR",
-                            "HEDGEHOG",
-                            "NTC",
                         ],
                     ),
                 ),
