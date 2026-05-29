@@ -97,7 +97,12 @@ def get_mapping_by_device(device: TuyaBLEDevice) -> TuyaBLELawnMowerMapping | No
     category = mapping.get(device.category)
     if category is None:
         return None
-    return category.products.get(device.product_id)
+    product_mapping = category.products.get(device.product_id)
+    if product_mapping is not None:
+        return product_mapping
+    if device.category == "gcj":
+        return category.products.get("7yr5iwga")
+    return None
 
 
 class TuyaBLELawnMower(TuyaBLEEntity, LawnMowerEntity):

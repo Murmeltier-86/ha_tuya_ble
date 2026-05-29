@@ -155,9 +155,6 @@
       },
       "problem": {
         "name": "Maschinenfehler"
-      },
-      "cover": {
-        "name": "Cover"
       }
     },
     "sensor": {
@@ -256,8 +253,8 @@
       "problem": {
         "name": "Maschinenwarnung",
         "state": {
-          "MOWER_LEAN": "Nicht verwendet / Mäher geneigt",
-          "MOWER_STEEP": "Nicht verwendet / zu steil",
+          "MOWER_LEAN": "Mäher geneigt",
+          "MOWER_STEEP": "Zu steil",
           "RAIN_PARK": "Fährt wegen Regen zur Ladestation zurück",
           "BATTERY_NOT_ENOUGH": "Akkuladung zu niedrig, Ladevorgang startet bald",
           "NO_LOOP_SIGNAL": "Kein Signal, Begrenzungskabel prüfen",

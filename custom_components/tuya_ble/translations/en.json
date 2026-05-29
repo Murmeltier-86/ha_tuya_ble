@@ -155,9 +155,6 @@
       },
       "problem": {
         "name": "Machine error"
-      },
-      "cover": {
-        "name": "Cover"
       }
     },
     "sensor": {
@@ -256,8 +253,8 @@
       "problem": {
         "name": "Machine warning",
         "state": {
-          "MOWER_LEAN": "Not used / mower tilted",
-          "MOWER_STEEP": "Not used / too steep",
+          "MOWER_LEAN": "Mower tilted",
+          "MOWER_STEEP": "Too steep",
           "RAIN_PARK": "Returning to station because of rain",
           "BATTERY_NOT_ENOUGH": "Battery too low, charging will start soon",
           "NO_LOOP_SIGNAL": "No signal, check boundary wire",
