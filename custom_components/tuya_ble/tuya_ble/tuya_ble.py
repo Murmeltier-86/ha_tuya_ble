@@ -324,6 +324,7 @@ class TuyaBLEDevice:
         self._notify_failures = 0
         self._next_reconnect_ts = 0.0
         self._notify_retry_block_until = 0.0
+        self._connected_since = 0.0
         self._last_ble_status_poll = 0.0
         self._user_command_in_progress_until = 0.0
         self._connected_callbacks: list[Callable[[], None]] = []
@@ -1170,6 +1171,7 @@ class TuyaBLEDevice:
                     continue
 
                 if self._client and self._client.is_connected:
+                    self._connected_since = monotonic()
                     _LOGGER.debug(
                         "%s: Sending device info request", self.address)
                     try:
@@ -1442,6 +1444,19 @@ class TuyaBLEDevice:
                 code.name,
             )
             return
+        if (
+            force_connect
+            and self._is_robot_mower()
+            and code in {TuyaBLECode.FUN_SENDER_DPS, TuyaBLECode.FUN_SENDER_DPS_V4}
+        ):
+            settle_time = 3.0 - (monotonic() - self._connected_since)
+            if settle_time > 0:
+                _LOGGER.info(
+                    "%s: waiting %.1fs after BLE connect before mower command write",
+                    self.address,
+                    settle_time,
+                )
+                await asyncio.sleep(settle_time)
         await self._send_packet_while_connected(code, data, 0, wait_for_response)
 
     async def _send_response(
