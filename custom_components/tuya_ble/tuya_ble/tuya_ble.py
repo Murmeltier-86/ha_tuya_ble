@@ -1587,7 +1587,16 @@ class TuyaBLEDevice:
             datapoints.append(self._datapoints[id])
             pos = next_pos
 
-        self._fire_callbacks(datapoints)
+        if datapoints:
+            self._fire_callbacks(datapoints)
+        else:
+            _LOGGER.debug(
+                "%s: No datapoints parsed from payload at offset %s: %s",
+                self.address,
+                start_pos,
+                data.hex(),
+            )
+        return len(datapoints)
 
     def _handle_command_or_response(
         self, seq_num: int, response_to: int, code: TuyaBLECode, data: bytes
@@ -1628,6 +1637,18 @@ class TuyaBLEDevice:
                 if len(data) != 1:
                     raise TuyaBLEDataLengthError()
                 result = data[0]
+
+            case TuyaBLECode.FUN_SENDER_DPS | TuyaBLECode.FUN_SENDER_DPS_V4:
+                if len(data) < 1:
+                    raise TuyaBLEDataLengthError()
+                result = data[0]
+                _LOGGER.debug(
+                    "%s: Datapoint send response for %s, result=%s, data=%s",
+                    self.address,
+                    code.name,
+                    result,
+                    data.hex(),
+                )
 
             case TuyaBLECode.FUN_RECEIVE_TIME1_REQ:
                 if len(data) != 0:
@@ -1688,11 +1709,43 @@ class TuyaBLEDevice:
                 asyncio.create_task(self._send_response(code, data, seq_num))
 
             case TuyaBLECode.FUN_RECEIVE_DP_V4:
-                self._parse_datapoints_v3(time.time(), 0, data, 0)
+                _LOGGER.debug(
+                    "%s: Received raw DP_V4 payload: %s",
+                    self.address,
+                    data.hex(),
+                )
+                try:
+                    parsed = self._parse_datapoints_v3(time.time(), 0, data, 0)
+                except TuyaBLEDataFormatError:
+                    parsed = 0
+                except TuyaBLEDataLengthError:
+                    parsed = 0
+                if parsed == 0:
+                    # Some v4 payloads include an application sequence/status
+                    # prefix before the normal DP list. Try common prefix sizes
+                    # so mower state reports are not silently ignored.
+                    for offset in (1, 2, 3, 4):
+                        if len(data) - offset < 4:
+                            continue
+                        try:
+                            parsed = self._parse_datapoints_v3(
+                                time.time(), 0, data, offset
+                            )
+                        except TuyaBLEDataFormatError:
+                            continue
+                        except TuyaBLEDataLengthError:
+                            continue
+                        if parsed:
+                            break
                 asyncio.create_task(
                     self._send_response(code, bytes(0), seq_num))
 
             case TuyaBLECode.FUN_RECEIVE_TIME_DP_V4:
+                _LOGGER.debug(
+                    "%s: Received raw TIME_DP_V4 payload: %s",
+                    self.address,
+                    data.hex(),
+                )
                 timestamp: float
                 pos: int
                 timestamp, pos = self._parse_timestamp(data, 0)
@@ -1908,7 +1961,7 @@ class TuyaBLEDevice:
         await self._send_packet(
             code,
             data,
-            wait_for_response=False,
+            wait_for_response=True,
             force_connect=force_connect,
         )
 
