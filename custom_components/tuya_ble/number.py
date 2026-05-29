@@ -569,6 +569,8 @@ def get_mapping_by_device(device: TuyaBLEDevice) -> list[TuyaBLECategoryNumberMa
         product_mapping = category.products.get(device.product_id)
         if product_mapping is not None:
             return product_mapping
+        if device.category == "gcj" and "7yr5iwga" in category.products:
+            return category.products["7yr5iwga"]
         if category.mapping is not None:
             return category.mapping
         else:
@@ -600,6 +602,8 @@ class TuyaBLENumber(TuyaBLEEntity, NumberEntity):
 
         datapoint = self._device.datapoints[self._mapping.dp_id]
         if datapoint:
+            if self._mapping.coefficient == 1.0:
+                return int(datapoint.value)
             return datapoint.value / self._mapping.coefficient
 
         return self._mapping.description.native_min_value

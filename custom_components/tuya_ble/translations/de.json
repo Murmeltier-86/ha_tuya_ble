@@ -31,37 +31,37 @@
   "entity": {
     "button": {
       "push": {
-        "name": "Push"
+        "name": "Drücken"
       },
       "bluetooth_unlock": {
-        "name": "Unlock"
+        "name": "Entsperren"
       },
       "start_mowing": {
-        "name": "Start mowing"
+        "name": "Mähen starten"
       },
       "start_fixed_mowing": {
-        "name": "Start fixed mowing"
+        "name": "Fixpunktmähen starten"
       },
       "pause_mowing": {
-        "name": "Pause mowing"
+        "name": "Mähen pausieren"
       },
       "cancel_mowing": {
-        "name": "Cancel mowing"
+        "name": "Mähen abbrechen"
       },
       "continue_mowing": {
-        "name": "Continue mowing"
+        "name": "Mähen fortsetzen"
       },
       "return_to_dock": {
-        "name": "Return to dock"
+        "name": "Zur Ladestation fahren"
       },
       "clear_schedule": {
-        "name": "Clear schedule"
+        "name": "Zeitplan löschen"
       },
       "query_schedule": {
-        "name": "Query schedule"
+        "name": "Zeitplan abfragen"
       },
       "query_zones": {
-        "name": "Query zones"
+        "name": "Zonen abfragen"
       }
     },
     "number": {
@@ -95,12 +95,6 @@
       "countdown_duration": {
         "name": "Irrigation duration"
       },
-      "countdown_duration_z1": {
-        "name": "Irrigation duration - Zone 1"
-      },
-      "countdown_duration_z2": {
-        "name": "Irrigation duration - Zone 2"
-      },
       "machine_worktime": {
         "name": "Running time"
       },
@@ -131,41 +125,41 @@
         "name": "Lock Volume"
       },
       "mode": {
-        "name": "Work mode",
+        "name": "Arbeitsmodus",
         "state": {
           "standby": "Standby",
-          "random": "Random",
-          "smart": "Automatic",
-          "spot": "Spot",
-          "goto_charge": "Return to charging station"
+          "random": "Zufallsmodus",
+          "smart": "Automatikmodus",
+          "spot": "Punktmodus",
+          "goto_charge": "Zur Ladestation zurückkehren"
         }
       },
       "machine_control_cmd": {
-        "name": "Control command",
+        "name": "Steuerbefehl",
         "state": {
-          "PauseWork": "Pause work",
-          "CancelWork": "Cancel work",
-          "ContinueWork": "Continue work",
-          "StartMowing": "Start mowing",
-          "StartFixedMowing": "Start fixed point mowing",
-          "StartReturnStation": "Return to station"
+          "PauseWork": "Arbeit pausieren",
+          "CancelWork": "Arbeit abbrechen",
+          "ContinueWork": "Arbeit fortsetzen",
+          "StartMowing": "Mähen starten",
+          "StartFixedMowing": "Fixpunktmähen starten",
+          "StartReturnStation": "Zur Ladestation fahren"
         }
       }
     },
     "binary_sensor": {
       "low_battery": {
-        "name": "Low battery"
+        "name": "Batterie schwach"
       },
       "lock_motor_state": {
         "name": "Motor State"
       },
       "problem": {
-        "name": "Machine error"
+        "name": "Maschinenfehler"
       }
     },
     "sensor": {
       "battery": {
-        "name": "Battery"
+        "name": "Batterie"
       },
       "battery_charging": {
         "name": "Battery charging",
@@ -200,7 +194,7 @@
         "name": "[%key:component::sensor::entity_component::moisture::name%]"
       },
       "signal_strength": {
-        "name": "Signal strength"
+        "name": "Signalstärke"
       },
       "temperature": {
         "name": "[%key:component::sensor::entity_component::temperature::name%]"
@@ -226,73 +220,67 @@
       "time_left": {
         "name": "Remaining irrigation time"
       },
-      "use_time_z1": {
-        "name": "Last irrigation time - Zone 1"
-      },
-      "use_time_z2": {
-        "name": "Last irrigation time - Zone 2"
-      },
       "status": {
-        "name": "Current status",
+        "name": "Aktueller Status",
         "state": {
           "standby": "Standby",
-          "paused": "Paused",
-          "sleep": "Sleep",
-          "smart_clean": "Automatic mowing",
-          "spot_clean": "Spot mowing",
-          "goto_charge": "Returning to charging station",
-          "charging": "Charging",
-          "charge_done": "Charging complete"
+          "paused": "Pausiert",
+          "sleep": "Ruhezustand",
+          "smart_clean": "Automatisches Mähen läuft",
+          "spot_clean": "Punktmähen läuft",
+          "goto_charge": "Rückfahrt zur Ladestation läuft",
+          "charging": "Wird geladen",
+          "charge_done": "Ladevorgang abgeschlossen"
         }
       },
       "machine_status": {
-        "name": "Machine status",
+        "name": "Maschinenstatus",
         "state": {
           "STANDBY": "Standby",
-          "CHARGING": "Charging",
-          "MOWING": "Mowing",
-          "PAUSED": "Paused",
-          "PARK": "Returning to station",
-          "UPDATA": "Updating",
-          "FIXED_MOWING": "Spot mowing",
-          "ERROR": "Error",
-          "SELF_TEST": "Self-test",
-          "CHARGING_WITH_TASK_SUSPEND": "Charging with suspended task",
-          "EMERGENCY": "Emergency stop active",
-          "LOCKED": "Screen locked"
+          "CHARGING": "Lädt",
+          "MOWING": "Mäht",
+          "PAUSED": "Pausiert",
+          "PARK": "Rückkehr zur Station",
+          "UPDATA": "Update läuft",
+          "FIXED_MOWING": "Punktmähen",
+          "ERROR": "Fehler",
+          "SELF_TEST": "Selbsttest",
+          "CHARGING_WITH_TASK_SUSPEND": "Laden mit unterbrochener Aufgabe",
+          "EMERGENCY": "Not-Aus aktiv",
+          "LOCKED": "Bildschirm gesperrt"
         }
       },
       "problem": {
-        "name": "Machine warning",
+        "name": "Maschinenwarnung",
         "state": {
-          "MOWER_LEAN": "Mower tilted",
-          "MOWER_STEEP": "Too steep",
-          "RAIN_PARK": "Returning to station because of rain",
-          "BATTERY_NOT_ENOUGH": "Battery too low, charging will start soon",
-          "NO_LOOP_SIGNAL": "No signal, check boundary wire",
-          "CLOSE_TOPCOVER": "Close cover and wait for work to start",
-          "MOWER_IN_STATION": "Machine is in the station; move it out of the station",
-          "MOWER_OUT_STATION": "Machine is not in the station; place it in the station",
-          "PLACE_INSIDE": "Place machine inside the area and try again",
-          "FIXED_END": "Spot mowing finished",
-          "CHARGING_DISCONNECT": "Charging unstable, check charging contacts",
-          "CHARGING_PAUSE": "Charging/work readiness interrupted, check station power supply",
-          "WORK_INTERRUPT": "Work interrupted, restart",
-          "FIXED_MOWING_INTERUPT": "Current work finished, check surroundings",
-          "TURN_ON_BUTTON": "Turn on the physical switch and try again",
-          "PRESS_START_KEY": "Press the start key",
-          "TIMESET_30MIN": "Scheduled appointment is more than 30 minutes away",
-          "TIMESET_UNLEGAL": "Invalid appointment time",
-          "CHARGR_CURRENT_LOW": "Charging current too low",
-          "RAIN_OUT_STATION": "Rain protection active",
-          "UPDATA_FAIL": "Update failed",
-          "CONTINUE_TOOLTIP": "Continue work dialog",
-          "MOWER_EMERGENCY": "Emergency stop active",
-          "MOWER_UI_LOCKED": "Screen locked",
-          "DISCHARGE_ERROR": "Discharge error",
-          "CHARGE_TEMP_ERROR": "Battery pack temperature abnormal",
-          "HEDGEHOG": "Hedgehog protection time active",
-          "NTC": "NTC temperature abnormal"
+          "MOWER_LEAN": "Mäher geneigt",
+          "MOWER_STEEP": "Zu steil",
+          "RAIN_PARK": "Fährt wegen Regen zur Ladestation zurück",
+          "BATTERY_NOT_ENOUGH": "Akkuladung zu niedrig, Ladevorgang startet bald",
+          "NO_LOOP_SIGNAL": "Kein Signal, Begrenzungskabel prüfen",
+          "CLOSE_TOPCOVER": "Abdeckung schließen und auf Arbeitsbeginn warten",
+          "MOWER_IN_STATION": "Maschine ist in der Station, bitte aus der Station bewegen",
+          "MOWER_OUT_STATION": "Maschine ist nicht in der Station, bitte in die Station stellen",
+          "PLACE_INSIDE": "Maschine in den Bereich stellen und erneut versuchen",
+          "FIXED_END": "Punktmähen beendet",
+          "CHARGING_DISCONNECT": "Laden instabil, Ladekontakte prüfen",
+          "CHARGING_PAUSE": "Lade-/Arbeitsbereitschaft unterbrochen, Stromversorgung der Station prüfen",
+          "WORK_INTERRUPT": "Arbeit unterbrochen, bitte neu starten",
+          "FIXED_MOWING_INTERUPT": "Aktuelle Arbeit beendet, Umgebung prüfen",
+          "TURN_ON_BUTTON": "Physischen Schalter einschalten und erneut versuchen",
+          "PRESS_START_KEY": "Start-Taste drücken",
+          "TIMESET_30MIN": "Geplanter Termin liegt mehr als 30 Minuten entfernt",
+          "TIMESET_UNLEGAL": "Terminzeit ungültig",
+          "CHARGR_CURRENT_LOW": "Ladestrom zu niedrig",
+          "RAIN_OUT_STATION": "Regenschutz aktiv",
+          "UPDATA_FAIL": "Update fehlgeschlagen",
+          "CONTINUE_TOOLTIP": "Dialog zum Fortsetzen der Arbeit",
+          "MOWER_EMERGENCY": "Not-Aus aktiv",
+          "MOWER_UI_LOCKED": "Bildschirm gesperrt",
+          "DISCHARGE_ERROR": "Entladefehler",
+          "CHARGE_TEMP_ERROR": "Akkupack-Temperatur abnormal",
+          "HEDGEHOG": "Igel-Schutzzeit aktiv",
+          "NTC": "NTC-Temperatur abnormal"
         }
       },
       "machine_error_log": {
@@ -350,12 +338,6 @@
       },
       "water_valve": {
         "name": "Irrigation valve"
-      },
-      "water_valve_z1": {
-        "name": "Irrigation valve - Zone 1"
-      },
-      "water_valve_z2": {
-        "name": "Irrigation valve - Zone 2"
       },
       "switch_go": {
         "name": "Mowing switch"
