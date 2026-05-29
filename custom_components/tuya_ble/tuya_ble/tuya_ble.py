@@ -2060,9 +2060,18 @@ class TuyaBLEDevice:
 
         value = dp.value
         if dp.type == TuyaBLEDataPointType.DT_ENUM and isinstance(value, int) and options:
-            if value < 0 or value >= len(options):
-                return None
-            value = options[value]
+            if self._is_robot_mower() and dp_id == 115:
+                # MachineControlCmd values observed on this mower are documented
+                # as command numbers 1..6, while cloud commands require the
+                # enum string.  Convert the one-based command number to the
+                # matching string before sending it through Tuya cloud.
+                if value <= 0 or value > len(options):
+                    return None
+                value = options[value - 1]
+            else:
+                if value < 0 or value >= len(options):
+                    return None
+                value = options[value]
 
         return {"code": code, "value": value}
 

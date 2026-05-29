@@ -186,8 +186,8 @@ class TuyaBLELawnMower(TuyaBLEEntity, LawnMowerEntity):
             await self._device.datapoints.end_update(force_connect=True)
 
     def start_mowing(self) -> None:
-        """Start mowing via Tuya mode=smart and switch_go BLE functions."""
-        self._hass.create_task(self._async_set_mode_and_switch(2, True))
+        """Start mowing via the Tuya mower command datapoint."""
+        self._send_mower_command("StartMowing")
 
     def pause(self) -> None:
         """Pause mowing via the Tuya mower command datapoint."""
