@@ -36,7 +36,6 @@ class TuyaBLEButtonMapping:
     press_value: bool | int | str | None = None
     command_options: list[str] | None = None
     extra_datapoints: list[tuple[int, TuyaBLEDataPointType, bytes | bool | int | str]] | None = None
-    enum_value_offset: int = 0
 
 
 def is_fingerbot_in_push_mode(self: TuyaBLEButton, product: TuyaBLEProductInfo) -> bool:
@@ -167,9 +166,9 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         "StartReturnStation",
                     ],
                     extra_datapoints=[
+                        (3, TuyaBLEDataPointType.DT_ENUM, 2),
                         (2, TuyaBLEDataPointType.DT_BOOL, True),
                     ],
-                    enum_value_offset=1,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=115,
@@ -187,7 +186,6 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         "StartFixedMowing",
                         "StartReturnStation",
                     ],
-                    enum_value_offset=1,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=115,
@@ -205,7 +203,6 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         "StartFixedMowing",
                         "StartReturnStation",
                     ],
-                    enum_value_offset=1,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=115,
@@ -223,7 +220,6 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         "StartFixedMowing",
                         "StartReturnStation",
                     ],
-                    enum_value_offset=1,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=107,
@@ -293,10 +289,7 @@ class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
 
         if dp_type == TuyaBLEDataPointType.DT_ENUM and isinstance(value, str):
             if self._mapping.command_options and value in self._mapping.command_options:
-                value = (
-                    self._mapping.command_options.index(value)
-                    + self._mapping.enum_value_offset
-                )
+                value = self._mapping.command_options.index(value)
             else:
                 _LOGGER.debug("%s: unknown enum button value %s", self._device.address, value)
                 return
@@ -337,7 +330,6 @@ class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
         """Send the button datapoint and optional companion datapoints as one BLE write."""
         self._device.datapoints.begin_update()
         try:
-            await datapoint.set_value(value)
             if self._mapping.extra_datapoints:
                 for dp_id, dp_type, dp_value in self._mapping.extra_datapoints:
                     _LOGGER.info(
@@ -354,6 +346,7 @@ class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
                         dp_value,
                     )
                     await companion.set_value(dp_value)
+            await datapoint.set_value(value)
         finally:
             await self._device.datapoints.end_update()
 
