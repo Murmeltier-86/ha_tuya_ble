@@ -396,6 +396,21 @@ class TuyaBLEDevice:
         mtu_size = getattr(self._client, "mtu_size", 247) or 247
         return pack(">H", max(GATT_MTU, min(0xF3, mtu_size - 4)))
 
+    def _is_robot_mower(self) -> bool:
+        """Return true for known Tuya robot mower devices."""
+        product_id = (self.product_id or "").strip().lower()
+        category = (self.category or "").strip().lower()
+        product_name = (self.product_name or "").strip().lower()
+        product_model = (self.product_model or "").strip().lower()
+        return (
+            product_id in ROBOT_MOWER_PRODUCT_IDS
+            or category == "gcj"
+            or "mower" in product_name
+            or "mähroboter" in product_name
+            or "maehroboter" in product_name
+            or product_model == "kc8b105"
+        )
+
     async def pair(self) -> None:
         """
         _LOGGER.debug("%s: Sending pairing request: %s",
@@ -409,7 +424,7 @@ class TuyaBLEDevice:
     async def update(self) -> None:
         _LOGGER.debug("%s: Updating", self.address)
         cloud_updated = await self.update_from_cloud()
-        if self.product_id in ROBOT_MOWER_PRODUCT_IDS:
+        if self._is_robot_mower():
             _LOGGER.debug(
                 "%s: Skipping BLE status poll for robot mower; cloud_updated=%s",
                 self.address,
@@ -481,7 +496,7 @@ class TuyaBLEDevice:
                     self._dp_type_to_data_point_type(function_info.type, value),
                 )
 
-        if self.product_id in ROBOT_MOWER_PRODUCT_IDS:
+        if self._is_robot_mower():
             fallback = ROBOT_MOWER_CLOUD_STATUS.get(code)
             if fallback:
                 return fallback
@@ -1573,7 +1588,7 @@ class TuyaBLEDevice:
 
             expected_type = (
                 ROBOT_MOWER_DP_TYPES.get(id)
-                if self.product_id in ROBOT_MOWER_PRODUCT_IDS
+                if self._is_robot_mower()
                 else None
             )
             if expected_type is not None and type != expected_type:
@@ -1921,7 +1936,7 @@ class TuyaBLEDevice:
             if code:
                 break
 
-        if self.product_id in ROBOT_MOWER_PRODUCT_IDS:
+        if self._is_robot_mower():
             for fallback_code, (fallback_dp_id, _) in ROBOT_MOWER_CLOUD_STATUS.items():
                 if fallback_dp_id == dp_id:
                     code = code or fallback_code
@@ -1975,11 +1990,22 @@ class TuyaBLEDevice:
 
         code = (
             TuyaBLECode.FUN_SENDER_DPS_V4
-            if self._protocol_version >= 4
+            if self._protocol_version >= 4 or self._is_robot_mower()
             else TuyaBLECode.FUN_SENDER_DPS
         )
         if code == TuyaBLECode.FUN_SENDER_DPS_V4:
             data = bytearray(TUYA_BLE_V4_DP_PREFIX) + data
+        _LOGGER.debug(
+            "%s: Sending datapoints with %s; protocol=%s product_id=%s "
+            "category=%s robot_mower=%s payload=%s",
+            self.address,
+            code.name,
+            self._protocol_version,
+            self.product_id,
+            self.category,
+            self._is_robot_mower(),
+            data.hex(),
+        )
         await self._send_packet(
             code,
             data,
