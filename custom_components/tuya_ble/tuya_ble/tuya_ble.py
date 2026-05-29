@@ -974,12 +974,12 @@ class TuyaBLEDevice:
                     if is_tuya_candidate and (
                         "write" in props or "write-without-response" in props
                     ):
-                        # Some Tuya devices expose one characteristic for notify
-                        # and a second write-without-response characteristic for
-                        # commands.  Prefer the dedicated write characteristic;
-                        # using the notify characteristic for writes can fail with
-                        # ESPHome proxies as "Write not permitted" even when the
-                        # cached properties contain "write".
+                        # Tuya BLE service definitions keep commands on the
+                        # write characteristic and responses on the notify
+                        # characteristic. Some devices expose a second
+                        # write-without-response characteristic for commands;
+                        # prefer that dedicated write path over a notify
+                        # characteristic that happens to advertise write too.
                         if (
                             write_char is None
                             or (
@@ -993,31 +993,6 @@ class TuyaBLEDevice:
                             )
                         ):
                             write_char = char
-
-        if (
-            self._is_robot_mower()
-            and notify_char is not None
-            and write_char is not None
-            and notify_char.uuid != write_char.uuid
-            and "write" in set(notify_char.properties or [])
-        ):
-            # The KC8B105/PMRC mower exposes a combined notify+write
-            # characteristic and a separate write-without-response
-            # characteristic.  Status frames arrive from the combined
-            # characteristic, but field logs show commands sent to the
-            # write-without-response characteristic are ACKed by the BLE
-            # protocol while the mower ignores every command/config change.
-            # Prefer the notify+write characteristic for mower commands so
-            # writes are sent with response on the same pipe the mower uses
-            # for its V4 datapoint exchange.
-            _LOGGER.info(
-                "%s: Robot mower using notify/write characteristic %s "
-                "for command writes instead of write-only characteristic %s",
-                self.address,
-                notify_char.uuid,
-                write_char.uuid,
-            )
-            write_char = notify_char
 
         if notify_char is not None:
             self._notify_char = notify_char.uuid
