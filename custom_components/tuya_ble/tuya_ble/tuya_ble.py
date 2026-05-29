@@ -2100,10 +2100,20 @@ class TuyaBLEDevice:
             data += pack(">BBH", dp.id, int(dp.type.value), len(value))
             data += value
 
+        # Tuya's command datapoint payload is the plain DP unit
+        # (dp_id, type, length, value).  This mower reports status using the
+        # V4 receive opcode/prefix, but field logs show locally sent V4 command
+        # payloads are acknowledged by the BLE layer and then ignored by the
+        # mower MCU.  Keep V4 parsing for inbound status frames, but send mower
+        # control/config writes through the documented legacy DPS command path.
         code = (
-            TuyaBLECode.FUN_SENDER_DPS_V4
-            if self._protocol_version >= 4 or self._is_robot_mower()
-            else TuyaBLECode.FUN_SENDER_DPS
+            TuyaBLECode.FUN_SENDER_DPS
+            if self._is_robot_mower()
+            else (
+                TuyaBLECode.FUN_SENDER_DPS_V4
+                if self._protocol_version >= 4
+                else TuyaBLECode.FUN_SENDER_DPS
+            )
         )
         if code == TuyaBLECode.FUN_SENDER_DPS_V4:
             data = bytearray(TUYA_BLE_V4_DP_PREFIX) + data
