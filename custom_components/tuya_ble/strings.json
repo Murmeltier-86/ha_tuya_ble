@@ -131,7 +131,14 @@
         "name": "Lock Volume"
       },
       "mode": {
-        "name": "Mode"
+        "name": "Work mode",
+        "state": {
+          "standby": "Standby",
+          "random": "Random",
+          "smart": "Automatic",
+          "spot": "Spot",
+          "goto_charge": "Return to charging station"
+        }
       },
       "machine_control_cmd": {
         "name": "Control command",
@@ -229,7 +236,20 @@
         "name": "Last irrigation time - Zone 2"
       },
       "status": {
-        "name": "Status",
+        "name": "Current status",
+        "state": {
+          "standby": "Standby",
+          "paused": "Paused",
+          "sleep": "Sleep",
+          "smart_clean": "Automatic mowing",
+          "spot_clean": "Spot mowing",
+          "goto_charge": "Returning to charging station",
+          "charging": "Charging",
+          "charge_done": "Charging complete"
+        }
+      },
+      "machine_status": {
+        "name": "Machine status",
         "state": {
           "STANDBY": "Standby",
           "CHARGING": "Charging",
@@ -237,46 +257,45 @@
           "PAUSED": "Paused",
           "PARK": "Returning to station",
           "UPDATA": "Updating",
-          "FIXED_MOWING": "Fixed point mowing",
+          "FIXED_MOWING": "Spot mowing",
           "ERROR": "Error",
           "SELF_TEST": "Self-test",
           "CHARGING_WITH_TASK_SUSPEND": "Charging with suspended task",
-          "EMERGENCY": "Emergency stop",
-          "LOCKED": "Locked"
+          "EMERGENCY": "Emergency stop active",
+          "LOCKED": "Screen locked"
         }
-      },
-      "machine_status": {
-        "name": "Machine status"
       },
       "problem": {
         "name": "Machine warning",
         "state": {
-          "MOWER_LEAN": "Mower tilted",
-          "MOWER_STEEP": "Slope too steep",
-          "RAIN_PARK": "Returning because of rain",
-          "BATTERY_NOT_ENOUGH": "Battery too low",
-          "NO_LOOP_SIGNAL": "No boundary signal",
-          "CLOSE_TOPCOVER": "Close cover",
-          "MOWER_IN_STATION": "Mower at station",
-          "MOWER_OUT_STATION": "Mower not at station",
-          "PLACE_INSIDE_STATION": "Place inside boundary",
-          "FIXED_END": "Fixed point mowing finished",
-          "CHARGING_DISCONNECT": "Charging unstable",
-          "CHARGING_PAUSE": "Charging interrupted",
-          "WORK_INTERRUPT": "Work interrupted",
-          "FIXED_MOWING_INTERUPT": "Fixed point mowing interrupted",
-          "TURN_ON_BUTTON": "Turn on physical switch",
-          "PRESS_START_KEY": "Press start key",
-          "TIMESET_30MIN": "Schedule longer than 30 minutes",
-          "TIMESET_UNLEGAL": "Invalid schedule time",
-          "CHARGR_CURRENT_LOW": "Charging current low",
-          "RAIN_OUT_STATION": "Avoiding rain",
+          "MOWER_LEAN": "Not used / mower tilted",
+          "MOWER_STEEP": "Not used / too steep",
+          "RAIN_PARK": "Returning to station because of rain",
+          "BATTERY_NOT_ENOUGH": "Battery too low, charging will start soon",
+          "NO_LOOP_SIGNAL": "No signal, check boundary wire",
+          "CLOSE_TOPCOVER": "Close cover and wait for work to start",
+          "MOWER_IN_STATION": "Machine is in the station; move it out of the station",
+          "MOWER_OUT_STATION": "Machine is not in the station; place it in the station",
+          "PLACE_INSIDE": "Place machine inside the area and try again",
+          "FIXED_END": "Spot mowing finished",
+          "CHARGING_DISCONNECT": "Charging unstable, check charging contacts",
+          "CHARGING_PAUSE": "Charging/work readiness interrupted, check station power supply",
+          "WORK_INTERRUPT": "Work interrupted, restart",
+          "FIXED_MOWING_INTERUPT": "Current work finished, check surroundings",
+          "TURN_ON_BUTTON": "Turn on the physical switch and try again",
+          "PRESS_START_KEY": "Press the start key",
+          "TIMESET_30MIN": "Scheduled appointment is more than 30 minutes away",
+          "TIMESET_UNLEGAL": "Invalid appointment time",
+          "CHARGR_CURRENT_LOW": "Charging current too low",
+          "RAIN_OUT_STATION": "Rain protection active",
           "UPDATA_FAIL": "Update failed",
-          "CONTINUE_TOOLTIP": "Continue work prompt",
-          "MOWER_EMERGENCY": "Emergency stop",
+          "CONTINUE_TOOLTIP": "Continue work dialog",
+          "MOWER_EMERGENCY": "Emergency stop active",
           "MOWER_UI_LOCKED": "Screen locked",
           "DISCHARGE_ERROR": "Discharge error",
-          "CHARGE_TEMP_ERROR": "Battery temperature error"
+          "CHARGE_TEMP_ERROR": "Battery pack temperature abnormal",
+          "HEDGEHOG": "Hedgehog protection time active",
+          "NTC": "NTC temperature abnormal"
         }
       },
       "machine_error_log": {
