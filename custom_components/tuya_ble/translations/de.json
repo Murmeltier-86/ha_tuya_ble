@@ -124,16 +124,6 @@
       "beep_volume": {
         "name": "Lock Volume"
       },
-      "mode": {
-        "name": "Arbeitsmodus",
-        "state": {
-          "standby": "Standby",
-          "random": "Zufallsmodus",
-          "smart": "Automatikmodus",
-          "spot": "Punktmodus",
-          "goto_charge": "Zur Ladestation zurückkehren"
-        }
-      },
       "machine_control_cmd": {
         "name": "Steuerbefehl",
         "state": {
@@ -143,6 +133,16 @@
           "StartMowing": "Mähen starten",
           "StartFixedMowing": "Fixpunktmähen starten",
           "StartReturnStation": "Zur Ladestation fahren"
+        }
+      },
+      "machine_mode": {
+        "name": "Arbeitsmodus",
+        "state": {
+          "standby": "Standby",
+          "random": "Zufallsmodus",
+          "smart": "Automatikmodus",
+          "spot": "Punktmodus",
+          "goto_charge": "Zur Ladestation zurückkehren"
         }
       }
     },
@@ -220,19 +220,6 @@
       "time_left": {
         "name": "Remaining irrigation time"
       },
-      "status": {
-        "name": "Aktueller Status",
-        "state": {
-          "standby": "Standby",
-          "paused": "Pausiert",
-          "sleep": "Ruhezustand",
-          "smart_clean": "Automatisches Mähen läuft",
-          "spot_clean": "Punktmähen läuft",
-          "goto_charge": "Rückfahrt zur Ladestation läuft",
-          "charging": "Wird geladen",
-          "charge_done": "Ladevorgang abgeschlossen"
-        }
-      },
       "machine_status": {
         "name": "Maschinenstatus",
         "state": {
@@ -288,6 +275,19 @@
       },
       "machine_work_log": {
         "name": "Work log"
+      },
+      "machine_current_status": {
+        "name": "Aktueller Status",
+        "state": {
+          "standby": "Standby",
+          "paused": "Pausiert",
+          "sleep": "Ruhezustand",
+          "smart_clean": "Automatisches Mähen läuft",
+          "spot_clean": "Punktmähen läuft",
+          "goto_charge": "Rückfahrt zur Ladestation läuft",
+          "charging": "Wird geladen",
+          "charge_done": "Ladevorgang abgeschlossen"
+        }
       }
     },
     "switch": {

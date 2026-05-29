@@ -130,16 +130,6 @@
       "beep_volume": {
         "name": "Lock Volume"
       },
-      "mode": {
-        "name": "Work mode",
-        "state": {
-          "standby": "Standby",
-          "random": "Random",
-          "smart": "Automatic",
-          "spot": "Spot",
-          "goto_charge": "Return to charging station"
-        }
-      },
       "machine_control_cmd": {
         "name": "Control command",
         "state": {
@@ -149,6 +139,16 @@
           "StartMowing": "Start mowing",
           "StartFixedMowing": "Start fixed point mowing",
           "StartReturnStation": "Return to station"
+        }
+      },
+      "machine_mode": {
+        "name": "Work mode",
+        "state": {
+          "standby": "Standby",
+          "random": "Random",
+          "smart": "Automatic",
+          "spot": "Spot",
+          "goto_charge": "Return to charging station"
         }
       }
     },
@@ -232,19 +232,6 @@
       "use_time_z2": {
         "name": "Last irrigation time - Zone 2"
       },
-      "status": {
-        "name": "Current status",
-        "state": {
-          "standby": "Standby",
-          "paused": "Paused",
-          "sleep": "Sleep",
-          "smart_clean": "Automatic mowing",
-          "spot_clean": "Spot mowing",
-          "goto_charge": "Returning to charging station",
-          "charging": "Charging",
-          "charge_done": "Charging complete"
-        }
-      },
       "machine_status": {
         "name": "Machine status",
         "state": {
@@ -300,6 +287,19 @@
       },
       "machine_work_log": {
         "name": "Work log"
+      },
+      "machine_current_status": {
+        "name": "Current status",
+        "state": {
+          "standby": "Standby",
+          "paused": "Paused",
+          "sleep": "Sleep",
+          "smart_clean": "Automatic mowing",
+          "spot_clean": "Spot mowing",
+          "goto_charge": "Returning to charging station",
+          "charging": "Charging",
+          "charge_done": "Charging complete"
+        }
       }
     },
     "switch": {

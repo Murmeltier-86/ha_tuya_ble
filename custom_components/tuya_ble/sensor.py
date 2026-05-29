@@ -245,6 +245,24 @@ mapping: dict[str, TuyaBLECategorySensorMapping] = {
             "7yr5iwga": [  # Robot Mower PMRC 250 A1 (BT)
                 TuyaBLEBatteryMapping(dp_id=13),
                 TuyaBLESensorMapping(
+                    dp_id=5,
+                    description=SensorEntityDescription(
+                        key="machine_current_status",
+                        icon="mdi:robot-mower",
+                        device_class=SensorDeviceClass.ENUM,
+                        options=[
+                            "standby",
+                            "paused",
+                            "sleep",
+                            "smart_clean",
+                            "spot_clean",
+                            "goto_charge",
+                            "charging",
+                            "charge_done",
+                        ],
+                    ),
+                ),
+                TuyaBLESensorMapping(
                     dp_id=101,
                     description=SensorEntityDescription(
                         key="status",
