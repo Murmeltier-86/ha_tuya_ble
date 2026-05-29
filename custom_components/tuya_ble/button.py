@@ -156,7 +156,7 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         icon="mdi:mower-on",
                     ),
                     dp_type=TuyaBLEDataPointType.DT_ENUM,
-                    press_value=4,
+                    press_value=3,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=115,
@@ -165,7 +165,7 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         icon="mdi:mower-on",
                     ),
                     dp_type=TuyaBLEDataPointType.DT_ENUM,
-                    press_value=5,
+                    press_value=4,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=115,
@@ -174,7 +174,7 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         icon="mdi:pause",
                     ),
                     dp_type=TuyaBLEDataPointType.DT_ENUM,
-                    press_value=1,
+                    press_value=0,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=115,
@@ -183,7 +183,7 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         icon="mdi:cancel",
                     ),
                     dp_type=TuyaBLEDataPointType.DT_ENUM,
-                    press_value=2,
+                    press_value=1,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=115,
@@ -192,7 +192,7 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         icon="mdi:mower-on",
                     ),
                     dp_type=TuyaBLEDataPointType.DT_ENUM,
-                    press_value=3,
+                    press_value=2,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=115,
@@ -201,7 +201,7 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         icon="mdi:home-import-outline",
                     ),
                     dp_type=TuyaBLEDataPointType.DT_ENUM,
-                    press_value=6,
+                    press_value=5,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=107,
