@@ -48,6 +48,9 @@
       "continue_mowing": {
         "name": "Continue mowing"
       },
+      "return_to_dock": {
+        "name": "Return to dock"
+      },
       "clear_schedule": {
         "name": "Clear schedule"
       },

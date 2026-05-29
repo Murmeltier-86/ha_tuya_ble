@@ -162,36 +162,38 @@ class TuyaBLELawnMower(TuyaBLEEntity, LawnMowerEntity):
         )
         self._hass.create_task(datapoint.set_value(value))
 
-    async def _async_start_mowing(self) -> None:
-        """Start mowing by selecting smart mode and enabling switch_go over BLE."""
+    async def _async_set_mode_and_switch(
+        self, mode_value: int, switch_value: bool
+    ) -> None:
+        """Set Tuya mode and switch_go together over local BLE."""
         self._device.datapoints.begin_update()
         try:
             mode = self._device.datapoints.get_or_create(
                 self._mapping.mode_dp_id,
                 TuyaBLEDataPointType.DT_ENUM,
-                2,
+                mode_value,
             )
             switch_go = self._device.datapoints.get_or_create(
                 self._mapping.switch_dp_id,
                 TuyaBLEDataPointType.DT_BOOL,
-                True,
+                switch_value,
             )
-            await mode.set_value(2)
-            await switch_go.set_value(True)
+            await mode.set_value(mode_value)
+            await switch_go.set_value(switch_value)
         finally:
             await self._device.datapoints.end_update(force_connect=True)
 
     def start_mowing(self) -> None:
         """Start mowing via Tuya mode=smart and switch_go BLE functions."""
-        self._hass.create_task(self._async_start_mowing())
+        self._hass.create_task(self._async_set_mode_and_switch(2, True))
 
     def pause(self) -> None:
-        """Pause mowing via the Tuya switch_go BLE function."""
-        self._set_switch_go(False)
+        """Pause mowing via Tuya mode=standby and switch_go BLE functions."""
+        self._hass.create_task(self._async_set_mode_and_switch(0, False))
 
     def dock(self) -> None:
-        """Return to dock via the Tuya mower command datapoint."""
-        self._send_mower_command("StartReturnStation")
+        """Return to dock via Tuya mode=goto_charge and switch_go BLE functions."""
+        self._hass.create_task(self._async_set_mode_and_switch(4, True))
 
 
 async def async_setup_entry(
