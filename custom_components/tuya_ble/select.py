@@ -187,14 +187,6 @@ mapping: dict[str, TuyaBLECategorySelectMapping] = {
         products={
             "7yr5iwga": [  # Robot Mower PMRC 250 A1 (BT)
                 TuyaBLESelectMapping(
-                    dp_id=3,
-                    description=SelectEntityDescription(
-                        key="mode",
-                        icon="mdi:state-machine",
-                        options=["standby", "random", "smart", "spot", "goto_charge"],
-                    ),
-                ),
-                TuyaBLESelectMapping(
                     dp_id=115,
                     description=SelectEntityDescription(
                         key="machine_control_cmd",
