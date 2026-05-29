@@ -281,6 +281,10 @@ ROBOT_MOWER_CLOUD_STATUS: dict[str, tuple[int, TuyaBLEDataPointType]] = {
     "rawreserved01": (139, TuyaBLEDataPointType.DT_RAW),
 }
 
+ROBOT_MOWER_DP_TYPES: dict[int, TuyaBLEDataPointType] = {
+    dp_id: data_type for dp_id, data_type in ROBOT_MOWER_CLOUD_STATUS.values()
+}
+
 ROBOT_MOWER_ENUM_OPTIONS: dict[int, list[str]] = {
     3: ["standby", "random", "smart", "spot", "goto_charge"],
     115: [
@@ -1566,6 +1570,25 @@ class TuyaBLEDevice:
             if next_pos > len(data):
                 raise TuyaBLEDataLengthError()
             raw_value = data[pos:next_pos]
+
+            expected_type = (
+                ROBOT_MOWER_DP_TYPES.get(id)
+                if self.product_id in ROBOT_MOWER_PRODUCT_IDS
+                else None
+            )
+            if expected_type is not None and type != expected_type:
+                _LOGGER.debug(
+                    "%s: Ignoring datapoint update with unexpected type, "
+                    "id: %s, received: %s, expected: %s, raw: %s",
+                    self.address,
+                    id,
+                    type.name,
+                    expected_type.name,
+                    raw_value.hex(),
+                )
+                pos = next_pos
+                continue
+
             match type:
                 case (TuyaBLEDataPointType.DT_RAW | TuyaBLEDataPointType.DT_BITMAP):
                     value = raw_value
