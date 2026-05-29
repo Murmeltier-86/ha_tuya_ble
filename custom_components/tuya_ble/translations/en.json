@@ -42,6 +42,9 @@
       "start_fixed_mowing": {
         "name": "Start fixed mowing"
       },
+      "pause_mowing": {
+        "name": "Pause mowing"
+      },
       "cancel_mowing": {
         "name": "Cancel mowing"
       },

@@ -188,12 +188,12 @@ class TuyaBLELawnMower(TuyaBLEEntity, LawnMowerEntity):
         self._hass.create_task(self._async_set_mode_and_switch(2, True))
 
     def pause(self) -> None:
-        """Pause mowing via Tuya mode=standby and switch_go BLE functions."""
-        self._hass.create_task(self._async_set_mode_and_switch(0, False))
+        """Pause mowing via the Tuya mower command datapoint."""
+        self._send_mower_command("PauseWork")
 
     def dock(self) -> None:
-        """Return to dock via Tuya mode=goto_charge and switch_go BLE functions."""
-        self._hass.create_task(self._async_set_mode_and_switch(4, True))
+        """Return to dock via the Tuya mower command datapoint."""
+        self._send_mower_command("StartReturnStation")
 
 
 async def async_setup_entry(

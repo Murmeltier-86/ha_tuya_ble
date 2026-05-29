@@ -174,39 +174,71 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                     ],
                 ),
                 TuyaBLEButtonMapping(
-                    dp_id=2,
+                    dp_id=115,
                     description=ButtonEntityDescription(
-                        key="cancel_mowing",
-                        icon="mdi:mower",
+                        key="pause_mowing",
+                        icon="mdi:pause",
                     ),
-                    dp_type=TuyaBLEDataPointType.DT_BOOL,
-                    press_value=False,
-                    extra_datapoints=[
-                        (3, TuyaBLEDataPointType.DT_ENUM, 0),
+                    dp_type=TuyaBLEDataPointType.DT_ENUM,
+                    press_value="PauseWork",
+                    command_options=[
+                        "PauseWork",
+                        "CancelWork",
+                        "ContinueWork",
+                        "StartMowing",
+                        "StartFixedMowing",
+                        "StartReturnStation",
                     ],
                 ),
                 TuyaBLEButtonMapping(
-                    dp_id=2,
+                    dp_id=115,
+                    description=ButtonEntityDescription(
+                        key="cancel_mowing",
+                        icon="mdi:cancel",
+                    ),
+                    dp_type=TuyaBLEDataPointType.DT_ENUM,
+                    press_value="CancelWork",
+                    command_options=[
+                        "PauseWork",
+                        "CancelWork",
+                        "ContinueWork",
+                        "StartMowing",
+                        "StartFixedMowing",
+                        "StartReturnStation",
+                    ],
+                ),
+                TuyaBLEButtonMapping(
+                    dp_id=115,
                     description=ButtonEntityDescription(
                         key="continue_mowing",
                         icon="mdi:mower-on",
                     ),
-                    dp_type=TuyaBLEDataPointType.DT_BOOL,
-                    press_value=True,
-                    extra_datapoints=[
-                        (3, TuyaBLEDataPointType.DT_ENUM, 2),
+                    dp_type=TuyaBLEDataPointType.DT_ENUM,
+                    press_value="ContinueWork",
+                    command_options=[
+                        "PauseWork",
+                        "CancelWork",
+                        "ContinueWork",
+                        "StartMowing",
+                        "StartFixedMowing",
+                        "StartReturnStation",
                     ],
                 ),
                 TuyaBLEButtonMapping(
-                    dp_id=2,
+                    dp_id=115,
                     description=ButtonEntityDescription(
                         key="return_to_dock",
                         icon="mdi:home-import-outline",
                     ),
-                    dp_type=TuyaBLEDataPointType.DT_BOOL,
-                    press_value=True,
-                    extra_datapoints=[
-                        (3, TuyaBLEDataPointType.DT_ENUM, 4),
+                    dp_type=TuyaBLEDataPointType.DT_ENUM,
+                    press_value="StartReturnStation",
+                    command_options=[
+                        "PauseWork",
+                        "CancelWork",
+                        "ContinueWork",
+                        "StartMowing",
+                        "StartFixedMowing",
+                        "StartReturnStation",
                     ],
                 ),
                 TuyaBLEButtonMapping(
