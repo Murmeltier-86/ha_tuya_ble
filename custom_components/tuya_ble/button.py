@@ -36,6 +36,7 @@ class TuyaBLEButtonMapping:
     press_value: bool | int | str | None = None
     command_options: list[str] | None = None
     extra_datapoints: list[tuple[int, TuyaBLEDataPointType, bytes | bool | int | str]] | None = None
+    enum_value_offset: int = 0
 
 
 def is_fingerbot_in_push_mode(self: TuyaBLEButton, product: TuyaBLEProductInfo) -> bool:
@@ -168,6 +169,7 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                     extra_datapoints=[
                         (2, TuyaBLEDataPointType.DT_BOOL, True),
                     ],
+                    enum_value_offset=1,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=115,
@@ -185,6 +187,7 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         "StartFixedMowing",
                         "StartReturnStation",
                     ],
+                    enum_value_offset=1,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=115,
@@ -202,6 +205,7 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         "StartFixedMowing",
                         "StartReturnStation",
                     ],
+                    enum_value_offset=1,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=115,
@@ -219,6 +223,7 @@ mapping: dict[str, TuyaBLECategoryButtonMapping] = {
                         "StartFixedMowing",
                         "StartReturnStation",
                     ],
+                    enum_value_offset=1,
                 ),
                 TuyaBLEButtonMapping(
                     dp_id=107,
@@ -288,7 +293,10 @@ class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
 
         if dp_type == TuyaBLEDataPointType.DT_ENUM and isinstance(value, str):
             if self._mapping.command_options and value in self._mapping.command_options:
-                value = self._mapping.command_options.index(value)
+                value = (
+                    self._mapping.command_options.index(value)
+                    + self._mapping.enum_value_offset
+                )
             else:
                 _LOGGER.debug("%s: unknown enum button value %s", self._device.address, value)
                 return
