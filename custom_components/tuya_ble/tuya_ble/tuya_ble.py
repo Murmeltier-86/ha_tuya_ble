@@ -1703,17 +1703,22 @@ class TuyaBLEDevice:
                 else None
             )
             if expected_type is not None and type != expected_type:
-                _LOGGER.debug(
-                    "%s: Ignoring datapoint update with unexpected type, "
-                    "id: %s, received: %s, expected: %s, raw: %s",
-                    self.address,
-                    id,
-                    type.name,
-                    expected_type.name,
-                    raw_value.hex(),
-                )
-                pos = next_pos
-                continue
+                numeric_types = {
+                    TuyaBLEDataPointType.DT_ENUM,
+                    TuyaBLEDataPointType.DT_VALUE,
+                }
+                if type not in numeric_types or expected_type not in numeric_types:
+                    _LOGGER.debug(
+                        "%s: Ignoring datapoint update with unexpected type, "
+                        "id: %s, received: %s, expected: %s, raw: %s",
+                        self.address,
+                        id,
+                        type.name,
+                        expected_type.name,
+                        raw_value.hex(),
+                    )
+                    pos = next_pos
+                    continue
 
             match type:
                 case (TuyaBLEDataPointType.DT_RAW | TuyaBLEDataPointType.DT_BITMAP):

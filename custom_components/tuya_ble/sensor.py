@@ -271,6 +271,7 @@ mapping: dict[str, TuyaBLECategorySensorMapping] = {
                         options=[
                             "STANDBY",
                             "CHARGING",
+                            "Mäht",
                             "MOWING",
                             "PAUSED",
                             "PARK",
@@ -618,6 +619,8 @@ class TuyaBLESensor(TuyaBLEEntity, SensorEntity):
                             ]
                         else:
                             self._attr_native_value = datapoint.value
+                    else:
+                        self._attr_native_value = datapoint.value
                     if self._mapping.icons is not None:
                         if (
                             isinstance(datapoint.value, int)

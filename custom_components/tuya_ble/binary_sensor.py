@@ -45,6 +45,19 @@ class TuyaBLEBinarySensorMapping:
     is_available: TuyaBLEBinarySensorIsAvailable = None
 
 
+def bitmap_problem_getter(self: "TuyaBLEBinarySensor") -> None:
+    """Set problem state from a Tuya bitmap datapoint."""
+    datapoint = self._device.datapoints[self._mapping.dp_id]
+    if not datapoint:
+        return
+
+    value = datapoint.value
+    if isinstance(value, bytes):
+        self._attr_is_on = int.from_bytes(value, "big") != 0
+    else:
+        self._attr_is_on = bool(value)
+
+
 @dataclass
 class TuyaBLECategoryBinarySensorMapping:
     products: dict[str, list[TuyaBLEBinarySensorMapping]] | None = None
@@ -95,6 +108,8 @@ mapping: dict[str, TuyaBLECategoryBinarySensorMapping] = {
                         device_class=BinarySensorDeviceClass.PROBLEM,
                         entity_category=EntityCategory.DIAGNOSTIC,
                     ),
+                    dp_type=TuyaBLEDataPointType.DT_BITMAP,
+                    getter=bitmap_problem_getter,
                 ),
                 TuyaBLEBinarySensorMapping(
                     dp_id=116,
