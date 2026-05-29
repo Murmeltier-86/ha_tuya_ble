@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 
 import logging
@@ -12,7 +13,6 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import (
     DeviceInfo,
     EntityDescription,
-    generate_entity_id,
 )
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import (
@@ -20,10 +20,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from homeassistant.components.tuya.const import (
-    DPCode,
-    DPType,
-)
+from homeassistant.components.tuya.const import DPCode
 
 from home_assistant_bluetooth import BluetoothServiceInfoBleak
 from .tuya_ble import (
@@ -37,6 +34,7 @@ from .cloud import HASSTuyaBLEDeviceManager
 from .const import (
     DEVICE_DEF_MANUFACTURER,
     DOMAIN,
+    DPType,
     FINGERBOT_BUTTON_EVENT,
     SET_DISCONNECTED_DELAY,
 )
@@ -89,9 +87,6 @@ class TuyaBLEEntity(CoordinatorEntity):
         self._attr_has_entity_name = True
         self._attr_device_info = get_device_info(self._device)
         self._attr_unique_id = f"{self._device.device_id}-{description.key}"
-        self.entity_id = generate_entity_id(
-            "sensor.{}", self._attr_unique_id, hass=hass
-        )
 
     @property
     def available(self) -> bool:
@@ -254,6 +249,9 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
             hass,
             _LOGGER,
             name=DOMAIN,
+            update_interval=(
+                timedelta(minutes=10) if device.is_robot_mower else timedelta(seconds=30)
+            ),
         )
         self._device = device
         self._disconnected: bool = True
@@ -262,15 +260,38 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
         device.register_callback(self._async_handle_update)
         device.register_disconnected_callback(self._async_handle_disconnect)
 
+    async def _async_update_data(self) -> None:
+        """Poll latest datapoints from the device."""
+        try:
+            if self._device.is_robot_mower and self._device.is_busy:
+                _LOGGER.debug(
+                    "%s: skipping coordinator poll while BLE operation is active",
+                    self._device.address,
+                )
+                return None
+            await self._device.update()
+            if self._disconnected:
+                _LOGGER.debug("%s: update succeeded; marking coordinator connected", self._device.address)
+            self._disconnected = False
+        except Exception:
+            _LOGGER.debug("%s: periodic update failed", self._device.address, exc_info=True)
+            # Keep the last known state and avoid surfacing transient BLE/proxy
+            # misses as system log errors. Availability is driven by callbacks and
+            # retained datapoints, not every single poll succeeding.
+            return None
+
     @property
     def connected(self) -> bool:
-        return not self._disconnected
+        # Some BLE proxy paths may not fire connected callback reliably;
+        # if datapoints were received we should still expose entities as available.
+        return (not self._disconnected) or (len(self._device.datapoints) > 0)
 
     @callback
     def _async_handle_connect(self) -> None:
         if self._unsub_disconnect is not None:
             self._unsub_disconnect()
         if self._disconnected:
+            _LOGGER.debug("%s: coordinator connected callback", self._device.address)
             self._disconnected = False
             self.async_update_listeners()
 
@@ -303,6 +324,7 @@ class TuyaBLECoordinator(DataUpdateCoordinator[None]):
         """Trigger the callbacks for disconnected."""
         if self._unsub_disconnect is None:
             delay: float = SET_DISCONNECTED_DELAY
+            _LOGGER.debug("%s: coordinator disconnect callback, marking unavailable in %ss", self._device.address, delay)
             self._unsub_disconnect = async_call_later(
                 self.hass, delay, self._set_disconnected
             )
@@ -472,10 +494,13 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
     ),
     "gcj": TuyaBLECategoryInfo(
         products={
-            "7yr5iwga": TuyaBLEProductInfo(  # Robot Mower PMRC 250 A1（BT）
+            "7yr5iwga": TuyaBLEProductInfo(  # Robot Mower PMRC 250 A1 (BT)
                 name="Robot Mower PMRC 250 A1 (BT)",
             ),
         },
+        info=TuyaBLEProductInfo(
+            name="Robot Mower",
+        ),
     ),
     "ggq": TuyaBLECategoryInfo(
         products={

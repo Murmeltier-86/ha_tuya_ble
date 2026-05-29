@@ -35,6 +35,33 @@
       },
       "bluetooth_unlock": {
         "name": "Unlock"
+      },
+      "start_mowing": {
+        "name": "Start mowing"
+      },
+      "start_fixed_mowing": {
+        "name": "Start fixed mowing"
+      },
+      "pause_mowing": {
+        "name": "Pause mowing"
+      },
+      "cancel_mowing": {
+        "name": "Cancel mowing"
+      },
+      "continue_mowing": {
+        "name": "Continue mowing"
+      },
+      "return_to_dock": {
+        "name": "Return to dock"
+      },
+      "clear_schedule": {
+        "name": "Clear schedule"
+      },
+      "query_schedule": {
+        "name": "Query schedule"
+      },
+      "query_zones": {
+        "name": "Query zones"
       }
     },
     "number": {
@@ -67,6 +94,12 @@
       },
       "countdown_duration": {
         "name": "Irrigation duration"
+      },
+      "machine_worktime": {
+        "name": "Running time"
+      },
+      "machine_password": {
+        "name": "Password"
       }
     },
     "select": {
@@ -89,7 +122,13 @@
         }
       },
       "beep_volume": {
-          "name": "Lock Volume"
+        "name": "Lock Volume"
+      },
+      "mode": {
+        "name": "Mode"
+      },
+      "machine_control_cmd": {
+        "name": "Control command"
       }
     },
     "binary_sensor": {
@@ -97,7 +136,13 @@
         "name": "[%key:component::sensor::entity_component::battery::name%]"
       },
       "lock_motor_state": {
-          "name": "Motor State"
+        "name": "Motor State"
+      },
+      "problem": {
+        "name": "Problem"
+      },
+      "cover": {
+        "name": "Cover"
       }
     },
     "sensor": {
@@ -146,27 +191,42 @@
         "name": "Water intake"
       },
       "residual_electricity": {
-          "name": "Battery"
+        "name": "Battery"
       },
       "alarm_lock": {
-          "name": "Alarm"
+        "name": "Alarm"
       },
       "wrong_finger": {
-          "name": "Wrong Fingerprint"
+        "name": "Wrong Fingerprint"
       },
       "wrong_password": {
-          "name": "Wrong Password"
+        "name": "Wrong Password"
       },
       "low_battery": {
-          "name": "Low Battery"
+        "name": "Low Battery"
       },
       "time_left": {
-          "name": "Remaining irrigation time"
+        "name": "Remaining irrigation time"
+      },
+      "status": {
+        "name": "Status"
+      },
+      "machine_status": {
+        "name": "Machine status"
+      },
+      "problem": {
+        "name": "Problem"
+      },
+      "machine_error_log": {
+        "name": "Error log"
+      },
+      "machine_work_log": {
+        "name": "Work log"
       }
     },
     "switch": {
       "programming_mode": {
-        "name": "Programming Mode" 
+        "name": "Programming Mode"
       },
       "programming_switch": {
         "name": "Programming Switch"
@@ -200,7 +260,7 @@
       },
       "program_repeat_forever": {
         "name": "Repeat forever"
-      },      
+      },
       "reverse_positions": {
         "name": "Reverse positions"
       },
@@ -208,15 +268,29 @@
         "name": "[%key:component::switch::entity_component::_::name%]"
       },
       "lock_motor_state": {
-          "name": "Motor State"
-      },            
+        "name": "Motor State"
+      },
       "water_valve": {
-          "name": "Irrigation valve"
-      }    
+        "name": "Irrigation valve"
+      },
+      "switch_go": {
+        "name": "Mowing switch"
+      },
+      "machine_rain_mode": {
+        "name": "Rain mode"
+      },
+      "hedgehog_protection": {
+        "name": "Hedgehog protection"
+      }
     },
     "text": {
       "program": {
         "name": "Program: position[/time];..."
+      }
+    },
+    "lawn_mower": {
+      "lawn_mower": {
+        "name": "Lawn mower"
       }
     }
   },

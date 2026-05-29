@@ -12,13 +12,12 @@ from enum import IntEnum, StrEnum, Enum
 
 from homeassistant.components.tuya.const import (
     DPCode,
-    DPType,
     WorkMode,
 )
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
-    ATTR_COLOR_TEMP,
+    ATTR_COLOR_TEMP_KELVIN,
     ATTR_HS_COLOR,
     ColorMode,
     LightEntity,
@@ -32,7 +31,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.const import EntityCategory
 
-from .const import DOMAIN
+from .const import DOMAIN, DPType
 from .base import IntegerTypeData
 from .util import remap_value
 from .devices import TuyaBLEData, TuyaBLEEntity, TuyaBLEProductInfo
@@ -623,7 +622,7 @@ class TuyaBLELight(TuyaBLEEntity, LightEntity):
         """Turn on or control the light."""
         commands = [{"code": self.entity_description.key, "value": True}]
 
-        if self._color_temp and ATTR_COLOR_TEMP in kwargs:
+        if self._color_temp and ATTR_COLOR_TEMP_KELVIN in kwargs:
             if self._color_mode_dpcode:
                 commands += [
                     {
@@ -637,7 +636,7 @@ class TuyaBLELight(TuyaBLEEntity, LightEntity):
                     "code": self._color_temp.dpcode,
                     "value": round(
                         self._color_temp.remap_value_from(
-                            kwargs[ATTR_COLOR_TEMP],
+                            kwargs[ATTR_COLOR_TEMP_KELVIN],
                             self.min_mireds,
                             self.max_mireds,
                             reverse=True,
@@ -651,7 +650,7 @@ class TuyaBLELight(TuyaBLEEntity, LightEntity):
             or (
                 ATTR_BRIGHTNESS in kwargs
                 and self.color_mode == ColorMode.HS
-                and ATTR_COLOR_TEMP not in kwargs
+                and ATTR_COLOR_TEMP_KELVIN not in kwargs
             )
         ):
             if self._color_mode_dpcode:
@@ -795,8 +794,8 @@ class TuyaBLELight(TuyaBLEEntity, LightEntity):
         return round(brightness)
 
     @property
-    def color_temp(self) -> int | None:
-        """Return the color_temp of the light."""
+    def color_temp_kelvin(self) -> int | None:
+        """Return the color temperature (Kelvin) of the light."""
         if not self._color_temp:
             return None
 
@@ -892,7 +891,7 @@ async def async_setup_entry(
     descs = get_mapping_by_device(data.device)
 
     if not descs:
-        _LOGGER.warning("No descriptions found for device: %s", data.device)
+        _LOGGER.debug("No light descriptions found for device: %s", data.device)
         return
 
     entities: list[TuyaBLELight] = []

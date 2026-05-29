@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 
 from bleak_retry_connector import BLEAK_RETRY_EXCEPTIONS as BLEAK_EXCEPTIONS, get_device
 
@@ -16,6 +17,7 @@ from .tuya_ble import TuyaBLEDevice
 
 from .cloud import HASSTuyaBLEDeviceManager
 from .const import DOMAIN
+from .debug_log import setup_private_debug_log
 from .devices import TuyaBLECoordinator, TuyaBLEData, get_device_product_info
 
 PLATFORMS: list[Platform] = [
@@ -25,6 +27,7 @@ PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
     Platform.LIGHT,
+    Platform.LAWN_MOWER,
     Platform.SELECT,
     Platform.SWITCH,
     Platform.TEXT,
@@ -35,7 +38,14 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Tuya BLE from a config entry."""
+    log_path = setup_private_debug_log(hass)
     address: str = entry.data[CONF_ADDRESS]
+    _LOGGER.info(
+        "Setting up Tuya BLE entry %s for %s; private log=%s",
+        entry.entry_id,
+        address,
+        log_path,
+    )
     ble_device = bluetooth.async_ble_device_from_address(
         hass, address.upper(), True
     ) or await get_device(address)
@@ -58,7 +68,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             f"Could not communicate with Tuya BLE device with address {address}"
         ) from ex
     '''
-    hass.add_job(device.update())
+    # Skip eager update at startup to avoid blocking Home Assistant bootstrap.
 
     @callback
     def _async_update_ble(
@@ -88,6 +98,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    hass.async_create_task(coordinator.async_request_refresh())
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     async def _async_stop(event: Event) -> None:
@@ -109,6 +120,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    _LOGGER.info("Unloading Tuya BLE entry %s", entry.entry_id)
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         data: TuyaBLEData = hass.data[DOMAIN].pop(entry.entry_id)
         await data.device.stop()

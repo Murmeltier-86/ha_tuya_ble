@@ -8,6 +8,17 @@ from typing_extensions import Final
 
 DOMAIN: Final = "tuya_ble"
 
+class DPType(StrEnum):
+    """Tuya datapoint data types used by this integration."""
+
+    BOOLEAN = "Boolean"
+    ENUM = "Enum"
+    INTEGER = "Integer"
+    JSON = "Json"
+    RAW = "Raw"
+    STRING = "String"
+
+
 DEVICE_METADATA_UUIDS: Final = "uuids"
 
 DEVICE_DEF_MANUFACTURER: Final = "Tuya"
@@ -26,6 +37,14 @@ CONF_STATUS_RANGE: Final = "status_range"
 CONF_AUTH_TYPE = "auth_type"
 CONF_PROJECT_TYPE = "tuya_project_type"
 CONF_ENDPOINT = "endpoint"
+
+CONF_APP_TYPE: Final = "app_type"
+
+TUYA_DOMAIN: Final = "tuya"
+TUYA_RESPONSE_SUCCESS: Final = "success"
+TUYA_RESPONSE_RESULT: Final = "result"
+TUYA_RESPONSE_CODE: Final = "code"
+TUYA_RESPONSE_MSG: Final = "msg"
 CONF_ACCESS_ID = "access_id"
 CONF_ACCESS_SECRET = "access_secret"
 SMARTLIFE_APP = "smartlife"
@@ -34,6 +53,9 @@ TUYA_SMART_APP = "tuyaSmart"
 TUYA_API_DEVICES_URL: Final = "/v1.0/users/%s/devices"
 TUYA_API_FACTORY_INFO_URL: Final = "/v1.0/iot-03/devices/factory-infos?device_ids=%s"
 TUYA_API_DEVICE_SPECIFICATION: Final = "/v1.1/devices/%s/specifications"
+TUYA_API_DEVICE_STATUS: Final = "/v1.0/iot-03/devices/%s/status"
+TUYA_API_DEVICE_SHADOW_PROPERTIES: Final = "/v2.0/cloud/thing/%s/shadow/properties"
+TUYA_API_DEVICE_COMMANDS: Final = "/v1.0/iot-03/devices/%s/commands"
 TUYA_FACTORY_INFO_MAC: Final = "mac"
 
 BATTERY_STATE_LOW: Final = "low"

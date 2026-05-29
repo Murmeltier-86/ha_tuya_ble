@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import pycountry
 from typing import Any
 
 import voluptuous as vol
@@ -27,24 +26,24 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowHandler, FlowResult
 
-from homeassistant.components.tuya.const import (
-    CONF_APP_TYPE,
-    CONF_ENDPOINT,
-    TUYA_RESPONSE_CODE,
-    TUYA_RESPONSE_MSG,
-    TUYA_RESPONSE_SUCCESS,
-)
 from .tuya_ble import SERVICE_UUID, TuyaBLEDeviceCredentials
+from .tuya_ble.const import MANUFACTURER_DATA_ID
 
 from .const import (
     DOMAIN,
     CONF_ACCESS_ID,
     CONF_ACCESS_SECRET,
     CONF_AUTH_TYPE,
+    CONF_APP_TYPE,
+    CONF_ENDPOINT,
+    TUYA_RESPONSE_CODE,
+    TUYA_RESPONSE_MSG,
+    TUYA_RESPONSE_SUCCESS,
     SMARTLIFE_APP,
     TUYA_SMART_APP,
     TUYA_COUNTRIES
 )
+from .debug_log import setup_private_debug_log
 from .devices import TuyaBLEData, get_device_readable_name
 from .cloud import HASSTuyaBLEDeviceManager
 
@@ -114,12 +113,6 @@ def _show_login_form(
                 break
 
     def_country_name: str | None = None
-    try:
-        def_country = pycountry.countries.get(alpha_2=flow.hass.config.country)
-        if def_country:
-            def_country_name = def_country.name
-    except:
-        pass
 
     return flow.async_show_form(
         step_id="login",
@@ -223,6 +216,10 @@ class TuyaBLEConfigFlow(ConfigFlow, domain=DOMAIN):
         self, discovery_info: BluetoothServiceInfoBleak
     ) -> FlowResult:
         """Handle the bluetooth discovery step."""
+        setup_private_debug_log(self.hass)
+        _LOGGER.info(
+            "Bluetooth discovery flow started for %s", discovery_info.address
+        )
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
         self._discovery_info = discovery_info
@@ -241,6 +238,8 @@ class TuyaBLEConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the user step."""
+        setup_private_debug_log(self.hass)
+        _LOGGER.info("Manual config flow started")
         if self._manager is None:
             self._manager = HASSTuyaBLEDeviceManager(self.hass, self._data)
         await self._manager.build_cache()
@@ -313,11 +312,14 @@ class TuyaBLEConfigFlow(ConfigFlow, domain=DOMAIN):
         else:
             current_addresses = self._async_current_ids()
             for discovery in async_discovered_service_info(self.hass):
+                service_data = discovery.service_data or {}
+                manufacturer_data = discovery.manufacturer_data or {}
+                has_tuya_service_data = SERVICE_UUID in service_data
+                has_tuya_manufacturer_data = MANUFACTURER_DATA_ID in manufacturer_data
                 if (
                     discovery.address in current_addresses
                     or discovery.address in self._discovered_devices
-                    or discovery.service_data is None
-                    or not SERVICE_UUID in discovery.service_data.keys()
+                    or (not has_tuya_service_data and not has_tuya_manufacturer_data)
                 ):
                     continue
                 self._discovered_devices[discovery.address] = discovery

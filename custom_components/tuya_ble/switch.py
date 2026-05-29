@@ -388,6 +388,35 @@ mapping: dict[str, TuyaBLECategorySwitchMapping] = {
             ],
         },
     ),
+    "gcj": TuyaBLECategorySwitchMapping(
+        products={
+            "7yr5iwga": [  # Robot Mower PMRC 250 A1 (BT)
+                TuyaBLESwitchMapping(
+                    dp_id=2,
+                    description=SwitchEntityDescription(
+                        key="switch_go",
+                        icon="mdi:robot-mower",
+                    ),
+                ),
+                TuyaBLESwitchMapping(
+                    dp_id=104,
+                    description=SwitchEntityDescription(
+                        key="machine_rain_mode",
+                        icon="mdi:weather-rainy",
+                        entity_category=EntityCategory.CONFIG,
+                    ),
+                ),
+                TuyaBLESwitchMapping(
+                    dp_id=118,
+                    description=SwitchEntityDescription(
+                        key="hedgehog_protection",
+                        icon="mdi:shield-check",
+                        entity_category=EntityCategory.CONFIG,
+                    ),
+                ),
+            ],
+        },
+    ),
     "ggq": TuyaBLECategorySwitchMapping(
         products={
             "6pahkcau": [  # Irrigation computer PARKSIDE PPB A1

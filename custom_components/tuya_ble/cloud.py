@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from dataclasses import dataclass
+import hashlib
 import json
 from typing import Any, Iterable
 
@@ -15,13 +16,6 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.components.tuya.const import (
-    CONF_APP_TYPE,
-    CONF_ENDPOINT,
-    DOMAIN as TUYA_DOMAIN,
-    TUYA_RESPONSE_RESULT,
-    TUYA_RESPONSE_SUCCESS,
-)
 from homeassistant.helpers.entity import DeviceInfo, EntityDescription
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -54,6 +48,9 @@ from .const import (
     TUYA_API_DEVICES_URL,
     TUYA_API_FACTORY_INFO_URL,
     TUYA_API_DEVICE_SPECIFICATION,
+    TUYA_API_DEVICE_STATUS,
+    TUYA_API_DEVICE_SHADOW_PROPERTIES,
+    TUYA_API_DEVICE_COMMANDS,
     TUYA_FACTORY_INFO_MAC,
     TUYA_API_DEVICES_URL,
     TUYA_API_FACTORY_INFO_URL,
@@ -61,6 +58,11 @@ from .const import (
     CONF_ACCESS_ID,
     CONF_ACCESS_SECRET,
     CONF_AUTH_TYPE,
+    CONF_APP_TYPE,
+    CONF_ENDPOINT,
+    TUYA_DOMAIN,
+    TUYA_RESPONSE_RESULT,
+    TUYA_RESPONSE_SUCCESS,
     SMARTLIFE_APP,
 )
 
@@ -79,6 +81,11 @@ CONF_TUYA_LOGIN_KEYS = [
     CONF_ACCESS_ID,
     CONF_ACCESS_SECRET,
     CONF_AUTH_TYPE,
+    CONF_APP_TYPE,
+    CONF_ENDPOINT,
+    TUYA_DOMAIN,
+    TUYA_RESPONSE_RESULT,
+    TUYA_RESPONSE_SUCCESS,
     CONF_USERNAME,
     CONF_PASSWORD,
     CONF_COUNTRY_CODE,
@@ -224,6 +231,8 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
                                 if status:
                                     item.credentials[mac][CONF_STATUS_RANGE] = status
 
+        _LOGGER.debug("Loaded Tuya cloud credentials for %s devices", len(item.credentials))
+
     async def build_cache(self) -> None:
         global _cache
         data = {}
@@ -257,6 +266,133 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
             self._data.update(cache_item.login)
             break
 
+
+
+    async def _get_api_session(self) -> TuyaCloudCacheItem | None:
+        """Return a logged-in Tuya cloud cache item for this manager."""
+        global _cache
+
+        item: TuyaCloudCacheItem | None = None
+        if self._has_login(self._data):
+            item = _cache.get(self._get_cache_key(self._data))
+
+        if item is None or item.api is None:
+            if self._is_login_success(await self.login(True)):
+                item = _cache.get(self._get_cache_key(self._data))
+
+        return item if item and item.api else None
+
+    async def get_device_status(
+        self,
+        device_id: str,
+    ) -> list[dict] | None:
+        """Get current datapoint status values from Tuya cloud."""
+        if not device_id:
+            return None
+
+        item = await self._get_api_session()
+        if item is None or item.api is None:
+            _LOGGER.debug("Cannot fetch Tuya cloud status for %s: no API session", device_id)
+            return None
+
+        statuses_by_code: dict[str, dict] = {}
+
+        status_response = await self._hass.async_add_executor_job(
+            item.api.get,
+            TUYA_API_DEVICE_STATUS % device_id,
+        )
+        self._collect_status_values(device_id, status_response, statuses_by_code)
+
+        shadow_response = await self._hass.async_add_executor_job(
+            item.api.get,
+            TUYA_API_DEVICE_SHADOW_PROPERTIES % device_id,
+        )
+        self._collect_status_values(device_id, shadow_response, statuses_by_code)
+
+        if statuses_by_code:
+            _LOGGER.debug(
+                "Fetched %s Tuya cloud datapoints for %s: %s",
+                len(statuses_by_code),
+                device_id,
+                sorted(statuses_by_code),
+            )
+            return list(statuses_by_code.values())
+
+        _LOGGER.debug(
+            "No Tuya cloud status values found for %s; status=%s shadow=%s",
+            device_id,
+            status_response,
+            shadow_response,
+        )
+        return None
+
+    @staticmethod
+    def _collect_status_values(
+        device_id: str,
+        response: dict | None,
+        statuses_by_code: dict[str, dict],
+    ) -> None:
+        """Collect Tuya status/property values from a cloud response."""
+        if not isinstance(response, dict):
+            _LOGGER.debug(
+                "Unexpected Tuya cloud status response for %s: %s",
+                device_id,
+                response,
+            )
+            return
+
+        result = response.get(TUYA_RESPONSE_RESULT)
+        values: list | None = None
+        if isinstance(result, list):
+            values = result
+        elif isinstance(result, dict):
+            properties = result.get("properties")
+            if isinstance(properties, list):
+                values = properties
+
+        if values is None:
+            _LOGGER.debug(
+                "Unexpected Tuya cloud status response for %s: %s",
+                device_id,
+                response,
+            )
+            return
+
+        for item in values:
+            if not isinstance(item, dict):
+                continue
+            code = item.get("code")
+            if not isinstance(code, str) or not code:
+                continue
+            statuses_by_code[code] = item
+
+
+    async def send_device_commands(
+        self,
+        device_id: str,
+        commands: list[dict],
+    ) -> bool:
+        """Send device commands through Tuya cloud."""
+        if not device_id or not commands:
+            return False
+
+        item = await self._get_api_session()
+        if item is None or item.api is None:
+            _LOGGER.debug("Cannot send Tuya cloud commands for %s: no API session", device_id)
+            return False
+
+        response = await self._hass.async_add_executor_job(
+            item.api.post,
+            TUYA_API_DEVICE_COMMANDS % device_id,
+            {"commands": commands},
+        )
+        success = self._is_login_success(response)
+        if success:
+            _LOGGER.debug("Sent %s Tuya cloud commands for %s", len(commands), device_id)
+        else:
+            _LOGGER.debug("Tuya cloud command failed for %s: %s", device_id, response)
+        return success
+
     async def get_device_credentials(
         self,
         address: str,
@@ -268,8 +404,17 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
         item: TuyaCloudCacheItem | None = None
         credentials: dict[str, any] | None = None
         result: TuyaBLEDeviceCredentials | None = None
+        normalized_address = address.replace("-", ":").upper()
+        _LOGGER.debug(
+            "Requesting Tuya BLE credentials for address=%s normalized=%s force_update=%s save_data=%s",
+            address,
+            normalized_address,
+            force_update,
+            save_data,
+        )
 
         if not force_update and self._has_credentials(self._data):
+            _LOGGER.debug("Using device credentials already present in manager data")
             credentials = self._data.copy()
         else:
             cache_key: str | None = None
@@ -277,22 +422,31 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
                 cache_key = self._get_cache_key(self._data)
             else:
                 for key in _cache.keys():
-                    if _cache[key].credentials.get(address) is not None:
+                    if _cache[key].credentials.get(normalized_address) is not None:
                         cache_key = key
                         break
             if cache_key:
+                _LOGGER.debug(
+                    "Using Tuya cloud cache key hash: %s",
+                    hashlib.sha256(cache_key.encode()).hexdigest()[:12],
+                )
                 item = _cache.get(cache_key)
+            else:
+                _LOGGER.debug("No Tuya cloud cache key found for %s", normalized_address)
 
             if item is None or force_update:
+                _LOGGER.debug("Refreshing Tuya cloud login/cache (item_missing=%s, force_update=%s)", item is None, force_update)
                 if self._is_login_success(await self.login(True)):
-                    item = _cache.get(cache_key)
+                    item = _cache.get(self._get_cache_key(self._data))
                     if item:
                         await self._fill_cache_item(item)
 
             if item:
-                credentials = item.credentials.get(address)
+                _LOGGER.debug("Cache contains %s credential entries", len(item.credentials))
+                credentials = item.credentials.get(normalized_address)
 
         if credentials:
+            _LOGGER.debug("Found Tuya cloud credentials for %s", normalized_address)
             result = TuyaBLEDeviceCredentials(
                 credentials.get(CONF_UUID, ""),
                 credentials.get(CONF_LOCAL_KEY, ""),
@@ -310,6 +464,15 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
                 if item:
                     self._data.update(item.login)
                 self._data.update(credentials)
+
+        if not result:
+            available_addresses = list(item.credentials.keys()) if item else []
+            _LOGGER.warning(
+                "No Tuya cloud credentials found for BLE address %s (normalized %s). Known cached addresses: %s",
+                address,
+                normalized_address,
+                available_addresses,
+            )
 
         return result
 

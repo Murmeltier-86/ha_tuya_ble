@@ -445,6 +445,35 @@ mapping: dict[str, TuyaBLECategoryNumberMapping] = {
             ],
         },
     ),
+    "gcj": TuyaBLECategoryNumberMapping(
+        products={
+            "7yr5iwga": [  # Robot Mower PMRC 250 A1 (BT)
+                TuyaBLENumberMapping(
+                    dp_id=105,
+                    description=NumberEntityDescription(
+                        key="machine_worktime",
+                        icon="mdi:timer",
+                        native_max_value=24,
+                        native_min_value=1,
+                        native_unit_of_measurement=UnitOfTime.HOURS,
+                        native_step=1,
+                        entity_category=EntityCategory.CONFIG,
+                    ),
+                ),
+                TuyaBLENumberMapping(
+                    dp_id=106,
+                    description=NumberEntityDescription(
+                        key="machine_password",
+                        icon="mdi:form-textbox-password",
+                        native_max_value=4444,
+                        native_min_value=1111,
+                        native_step=1,
+                        entity_category=EntityCategory.CONFIG,
+                    ),
+                ),
+            ],
+        },
+    ),
     "znhsb": TuyaBLECategoryNumberMapping(
         products={
             "cdlandip":  # Smart water bottle

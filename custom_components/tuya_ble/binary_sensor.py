@@ -84,6 +84,29 @@ mapping: dict[str, TuyaBLECategoryBinarySensorMapping] = {
             ],
         },
     ),
+    "gcj": TuyaBLECategoryBinarySensorMapping(
+        products={
+            "7yr5iwga": [  # Robot Mower PMRC 250 A1 (BT)
+                TuyaBLEBinarySensorMapping(
+                    dp_id=102,
+                    description=BinarySensorEntityDescription(
+                        key="problem",
+                        icon="mdi:alert-circle",
+                        device_class=BinarySensorDeviceClass.PROBLEM,
+                        entity_category=EntityCategory.DIAGNOSTIC,
+                    ),
+                ),
+                TuyaBLEBinarySensorMapping(
+                    dp_id=116,
+                    description=BinarySensorEntityDescription(
+                        key="cover",
+                        icon="mdi:door",
+                        entity_category=EntityCategory.DIAGNOSTIC,
+                    ),
+                ),
+            ],
+        },
+    ),
 }
 
 
