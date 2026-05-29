@@ -145,7 +145,9 @@ class TuyaBLELawnMower(TuyaBLEEntity, LawnMowerEntity):
         if command not in self._mapping.command_options:
             _LOGGER.debug("%s: unknown mower command %s", self._device.address, command)
             return
-        value = self._mapping.command_options.index(command)
+        # The mower MCU expects the command numbers documented by Tuya
+        # (1..6), not the zero-based enum index used by cloud option lists.
+        value = self._mapping.command_options.index(command) + 1
         datapoint = self._device.datapoints.get_or_create(
             self._mapping.command_dp_id,
             TuyaBLEDataPointType.DT_ENUM,
